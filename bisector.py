@@ -2,40 +2,57 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.optimize import brentq
 from scipy.interpolate import InterpolatedUnivariateSpline
+from functools import partial
+from PyAstronomy.pyasl import intep
 
 from gaussian import gaussfit
 
-
-def bisector(x, y, center='min'):
+def bisector(x, y, center='min', k=2):
     """ 
-    Return a function which evaluates the bisector of a Gaussian.
+    Return a function which evaluates the bisector of a CCF profile.
 
     Parameters
     ----------
     x : array_like
-        The x values where the Gaussian is defined.
+        The x (velocity) values where the CCF is defined.
     y : array_like
-        The y values of the Gaussian.
+        The y (CCF) values.
     center : string
         If 'min', the bisector starts at the minimum of `y`. 
         If 'rv', the bisector stats at the center of a Gaussian fit to `x`,`y`.
+    k : int, str
+        If int, interpolation order (k=2 - quadratic is the default).
+        If k='intep', use the INTEP routine from Hill, PDAO 16, 67 (1982) as it
+        is implemented in PyAstronomy.
     """
-    spl = InterpolatedUnivariateSpline(x, y, k=1)  # linear interpolation
+    if isinstance(k, int):
+        # k-th order spline interpolation
+        spl = InterpolatedUnivariateSpline(x, y, k=k)
+    elif k == 'intep':
+        spl = partial(intep, x, y)
+    else:
+        raise ValueError('In `bisector`, k should be int or "intep".')
 
     if center.lower() == 'min':
-        left, center, right = x.min(), x[y.argmin()], x.max()
+        # maybe the ccf is upside down?
+        if y[x.size // 2] > y[0]: # yap
+            center = x[y.argmax()]
+        else:
+            center = x[y.argmin()]
+        left, right = x.min(), x.max()
+
     elif center.lower() == 'rv':
         c = gaussfit(x, y, [y.mean() - y.max(), x[y.argmin()], 1, y.mean()])
         left, center, right = x.min(), c[1], x.max()
 
-    # invert the CCF interpolator, on the left side
-    invfleft = lambda y: brentq(lambda rv: spl(rv) - y, left, center)
+    # invert the ccf interpolator, on the left side
+    invfleft = lambda yy: brentq(lambda rv: spl(rv) - yy, left, center)
 
-    # invert the CCF interpolator, on the right side
-    invfright = lambda y: brentq(lambda rv: spl(rv) - y, center, right)
+    # invert the ccf interpolator, on the right side
+    invfright = lambda yy: brentq(lambda rv: spl(rv) - yy, center, right)
 
     # the bisector
-    bis = lambda y: 0.5 * (invfleft(y) + invfright(y))
+    bis = lambda yyy: 0.5 * (invfleft(yyy) + invfright(yyy))
     bis = np.vectorize(bis)
     return bis
 
@@ -43,11 +60,24 @@ def bisector(x, y, center='min'):
 def BIS(x, y, down=(10, 40), up=(60, 90), full_output=False):
     """
     Calculate the Bisector Inverse Slope (BIS) of a line profile given by x,y.
-    The BIS is defined as the difference between the velocity of the top and 
-    bottom sections of the line profile, where
-    top = average mid-point of the flux levels within `up`% 
-    bottom = average mid-point of the flux levels within `down`% 
-    of the line full depth. See Figueira et al. A&A 557, A93 (2013).
+    The BIS is defined as the difference between the average bisector in the 
+    top and bottom sections of the line profile, where
+    top = flux levels within `up`% 
+    bottom = flux levels within `down`% 
+    of the line full depth. See Figueira+ A&A 557, A93 (2013).
+
+    Parameters
+    ----------
+    rv : array
+        The velocity values where the CCF is defined.
+    ccf : array
+        The values of the CCF profile.
+    down, up : tuples
+        Tuples defining the lower and upper regions of the profile used for the
+        BIS calculation. Defaults are the original values from Queloz+(2001).
+        Values should be given in percentage.
+    full_output : boolean
+        Return extra intermediate values. 
     """
     # check the limits
     assert 0 < down[0] < 100 and 0 < down[1] < 100 and down[0] < down[1]
@@ -56,8 +86,11 @@ def BIS(x, y, down=(10, 40), up=(60, 90), full_output=False):
     # fit a Gaussian to the profile
     c = gaussfit(x, y, [y.mean() - y.max(), x[y.argmin()], 1, y.mean()])
 
-    # the absolute bottom, and range of the (fitted) profile
+    # the absolute bottom and range of the (fitted) profile
     bot, ran = c[3] + c[0], abs(c[0])
+
+    # a uniform range of depths
+    depth = np.linspace(c[3], bot, 100)
 
     # the absolute flux limits for the given limits
     bottom_limit1 = bot + ran * (down[0] / 100)
@@ -69,15 +102,20 @@ def BIS(x, y, down=(10, 40), up=(60, 90), full_output=False):
     fl1 = 0.5 * (bottom_limit1 + bottom_limit2)
     fl2 = 0.5 * (top_limit1 + top_limit2)
 
-    # the BIS value
+    # the bisector "function"
     bisf = bisector(x, y)
-    bis = bisf(fl2) - bisf(fl1)
+    # bisectors at the top and bottom regions of the profile
+    RV_top = bisf(depth[(top_limit1 < depth) & (depth < top_limit2)])
+    RV_bot = bisf(depth[(bottom_limit1 < depth) & (depth < bottom_limit2)])
+    # difference of the average bisectors
+    BIS = RV_top.mean() - RV_bot.mean()
+    
     if full_output:
-        return bis, c, bot, ran, \
+        return BIS, c, bot, ran, \
                (bottom_limit1, bottom_limit2), (top_limit1, top_limit2), \
                fl1, fl2, bisf
     else:
-        return bis
+        return BIS
 
 
 def BISplus(x, y):
@@ -122,3 +160,121 @@ def BIS_plot(x, y, down=(10, 40), up=(60, 90), rvunits='km/s'):
     
     fig.tight_layout()
     plt.show()
+
+
+
+
+def normalize_ccf(rv, ccf):
+    p = gaussfit(rv, ccf, [ccf.mean() - ccf.max(), rv[ccf.argmin()], 1, ccf.mean()])
+    a, _, _, off = p
+    nccf = -off/a*(1.-ccf/off)
+    return nccf
+
+
+
+def Lovis_interpolate(rv, ccf):
+    # err = np.ones(len(ccf), 'd')
+    p = gaussfit(rv, ccf, [ccf.mean() - ccf.max(), rv[ccf.argmin()], 1, ccf.mean()])
+    k, v0, sigma, c = p
+    norm_ccf = -c/k*(1.-ccf/c)
+    nstep = 100
+    margin = 5
+    depth = np.arange(nstep-2*margin+1)/nstep + float(margin)/nstep
+
+    p = np.zeros([len(ccf),3],'d')
+    bis_b = np.zeros(len(depth),'d')
+    bis_r = np.zeros(len(depth),'d')
+
+    for i in range(len(ccf)-1):
+        if (max(norm_ccf[i],norm_ccf[i+1]) >= depth[0]) & (min(norm_ccf[i],norm_ccf[i+1]) <= depth[-1]):
+            v = (rv[i]+rv[i+1])/2.
+            dccfdRV = -(v-v0)/sigma**2 * np.exp(-(v-v0)**2/2/sigma**2)
+            d2ccfdRV2 = ((v-v0)**2/sigma**2-1)/sigma**2 * np.exp(-(v-v0)**2/2/sigma**2)
+            d2RVdccf2 = -d2ccfdRV2/dccfdRV**3
+            p[i,2] = d2RVdccf2/2
+            p[i,1] = (rv[i+1]-rv[i]-p[i,2]*(norm_ccf[i+1]**2-norm_ccf[i]**2))/(norm_ccf[i+1]-norm_ccf[i])
+            p[i,0] = rv[i] - p[i,1]*norm_ccf[i] - p[i,2]*norm_ccf[i]**2
+
+    for j in range(len(depth)):
+        i_b = norm_ccf.argmax()
+        while (norm_ccf[i_b] > depth[j]) & (i_b > 1): 
+            i_b = i_b-1
+        i_r = norm_ccf.argmax()
+        while (norm_ccf[i_r+1] > depth[j]) & (i_r < len(ccf)-2): 
+            i_r = i_r+1
+        bis_b[j] = p[i_b,0] + p[i_b,1]*depth[j] + p[i_b,2]*depth[j]**2
+        bis_r[j] = p[i_r,0] + p[i_r,1]*depth[j] + p[i_r,2]*depth[j]**2
+    
+    return bis_b, bis_r, (1 + k*depth/c)*c
+
+
+def BIS_HARPS(rv, ccf, down=(10, 40), up=(60, 90)):
+    """ 
+    BIS calculation as performed by the HARPS pipeline.
+    This implementation uses a custom quadratic interpolation, devised by
+    Christophe Lovis, where the quadratic term is set by a Gaussian fit to 
+    the profile. 
+
+    Parameters
+    ----------
+    rv : array
+        The velocity values where the CCF is defined.
+    ccf : array
+        The values of the CCF profile.
+    down, up : tuples
+        Tuples defining the lower and upper regions of the profile used for the
+        BIS calculation. Defaults are the original values from Queloz+(2001).
+        Values should be given in percentage.
+    """
+
+    # check the limits
+    assert 0 < down[0] < 100 and 0 < down[1] < 100 and down[0] < down[1]
+    assert 0 < up[0] < 100 and 0 < up[1] < 100 and up[0] < up[1]
+    down = tuple(d/100 for d in down)
+    up = tuple(u/100 for u in up)
+
+    # err = np.ones(len(ccf), 'd')
+    p = gaussfit(rv, ccf, [ccf.mean() - ccf.max(), rv[ccf.argmin()], 1, ccf.mean()])
+    k, v0, sigma, c = p
+    norm_ccf = -c/k*(1.-ccf/c)
+    nstep = 100
+    margin = 5
+    depth = np.arange(nstep-2*margin+1)/nstep + float(margin)/nstep
+
+    p = np.zeros([len(ccf),3],'d')
+    bis_b = np.zeros(len(depth),'d')
+    bis_r = np.zeros(len(depth),'d')
+
+    for i in range(len(ccf)-1):
+        if (max(norm_ccf[i],norm_ccf[i+1]) >= depth[0]) & (min(norm_ccf[i],norm_ccf[i+1]) <= depth[-1]):
+            v = (rv[i]+rv[i+1])/2.
+            dccfdRV = -(v-v0)/sigma**2 * np.exp(-(v-v0)**2/2/sigma**2)
+            d2ccfdRV2 = ((v-v0)**2/sigma**2-1)/sigma**2 * np.exp(-(v-v0)**2/2/sigma**2)
+            d2RVdccf2 = -d2ccfdRV2/dccfdRV**3
+            p[i,2] = d2RVdccf2/2
+            p[i,1] = (rv[i+1]-rv[i]-p[i,2]*(norm_ccf[i+1]**2-norm_ccf[i]**2))/(norm_ccf[i+1]-norm_ccf[i])
+            p[i,0] = rv[i] - p[i,1]*norm_ccf[i] - p[i,2]*norm_ccf[i]**2
+
+    for j in range(len(depth)):
+        i_b = norm_ccf.argmax()
+        while (norm_ccf[i_b] > depth[j]) & (i_b > 1): 
+            i_b = i_b-1
+        i_r = norm_ccf.argmax()
+        while (norm_ccf[i_r+1] > depth[j]) & (i_r < len(ccf)-2): 
+            i_r = i_r+1
+        bis_b[j] = p[i_b,0] + p[i_b,1]*depth[j] + p[i_b,2]*depth[j]**2
+        bis_r[j] = p[i_r,0] + p[i_r,1]*depth[j] + p[i_r,2]*depth[j]**2
+
+    bis = (bis_b+bis_r)/2.
+   
+    for i in range(len(bis)):
+        if not np.isfinite(bis[i]): 
+            bis = np.zeros(len(depth),'d')
+   
+    qq = np.greater_equal(depth, down[0]) * np.less_equal(depth, down[1])
+    RV_top = np.mean(np.compress(qq, bis))
+    qq = np.greater_equal(depth, up[0]) * np.less_equal(depth, up[1])
+    RV_bottom = np.mean(np.compress(qq, bis))
+    span = RV_top - RV_bottom
+   
+    return span #(1 + k*depth/c)*c, bis, span, v0, depth
