@@ -1,5 +1,9 @@
-# iCCF
-Line profile / asymmetry indicators
+<p align="center">
+  <img width = "450" src="https://github.com/j-faria/iCCF/blob/master/logo.png?raw=true"/>
+  <br>
+  Line profile asymmetry indicators
+</p>
+
 
 
 Based on the works of others:
