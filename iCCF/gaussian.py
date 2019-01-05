@@ -41,3 +41,48 @@ def sig2fwhm(sig):
 def fwhm2sig(fwhm):
     """ Convert full width at half maximum to standard deviation. """
     return fwhm / (2 * sqrt(2 * log(2)))
+
+
+def RV(rv, ccf):
+    """
+    Calculate the radial velocity as the center of a Gaussian fit the CCF.
+    
+    Parameters
+    ----------
+    rv : array
+        The velocity values where the CCF is defined.
+    ccf : array
+        The values of the CCF profile.
+    """
+    _, rv, _, _ = gaussfit(rv, ccf)
+    return rv
+
+
+def FWHM(rv, ccf):
+    """
+    Calculate the full width at half maximum (FWHM) of the CCF.
+    
+    Parameters
+    ----------
+    rv : array
+        The velocity values where the CCF is defined.
+    ccf : array
+        The values of the CCF profile.
+    """
+    _, _, sig, _ = gaussfit(rv, ccf)
+    return sig2fwhm(sig)
+
+
+def contrast(rv, ccf):
+    """
+    Calculate the contrast (depth, measured in percentage) of the CCF.
+    
+    Parameters
+    ----------
+    rv : array
+        The velocity values where the CCF is defined.
+    ccf : array
+        The values of the CCF profile.
+    """
+    A, _, _, continuum = gaussfit(rv, ccf)
+    return abs(100 * A / continuum)
