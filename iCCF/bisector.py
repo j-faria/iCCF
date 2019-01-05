@@ -4,8 +4,9 @@ from scipy.optimize import brentq
 from scipy.interpolate import InterpolatedUnivariateSpline
 from functools import partial
 from PyAstronomy.pyasl import intep
+from multipledispatch import dispatch
 
-from gaussian import gaussfit
+from .gaussian import gaussfit
 
 def bisector(x, y, center='min', k=2):
     """ 
@@ -57,9 +58,10 @@ def bisector(x, y, center='min', k=2):
     return bis
 
 
+@dispatch(np.ndarray, np.ndarray)
 def BIS(x, y, down=(10, 40), up=(60, 90), full_output=False):
     """
-    Calculate the Bisector Inverse Slope (BIS) of a line profile given by x,y.
+    ____Calculate the Bisector Inverse Slope (BIS) of a line profile given by x,y.
     The BIS is defined as the difference between the average bisector in the 
     top and bottom sections of the line profile, where
     top = flux levels within `up`% 
@@ -72,11 +74,11 @@ def BIS(x, y, down=(10, 40), up=(60, 90), full_output=False):
         The velocity values where the CCF is defined.
     ccf : array
         The values of the CCF profile.
-    down, up : tuples
+    down, up : tuples, optional
         Tuples defining the lower and upper regions of the profile used for the
         BIS calculation. Defaults are the original values from Queloz+(2001).
         Values should be given in percentage.
-    full_output : boolean
+    full_output : boolean, optional
         Return extra intermediate values. 
     """
     # check the limits
@@ -117,6 +119,27 @@ def BIS(x, y, down=(10, 40), up=(60, 90), full_output=False):
     else:
         return BIS
 
+
+@dispatch(str)
+def BIS(filename, hdu_number=0, data_index=-1,
+        down=(10, 40), up=(60, 90), full_output=False):
+    """
+    ____Read the velocity and CCF arrays directly from a fits file.
+
+    Parameters
+    ----------
+    filename : str
+        The name of the fits file
+    hdu_number : int 
+        The index of the HDU where the CCF data is located.
+    data_index : int
+        The index of the data array used to extract the CCF.
+    down, up : tuples, optional
+        See above.
+    full_output : boolean, optional
+        See above.
+    """
+    print(filename)
 
 def BISplus(x, y):
     """ The BIS+ is the BIS with down=(10%, 20%) and up=(80%, 90%)."""

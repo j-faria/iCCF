@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-from gaussian import gaussfit
+from .gaussian import gaussfit
 
 
 def vspan(x, y, limits=(1, 3)):
@@ -16,11 +16,12 @@ def vspan(x, y, limits=(1, 3)):
         The x (velocity) values where the CCF is defined.
     y : array_like
         The CCF values.
-    limits : tuple
+    limits : tuple, optional
         For limits = (l1, l2), the upper part of the CCF is defined 
-        in the range [-∞:–l1*σ][+l1*σ:+∞] and the lower part is defined 
-        in the range [-∞:-l2*σ][-l1*σ:+l1σ][+l2*σ:+∞],
+        in the range [-∞ : -l1*σ][+l1*σ : +∞] and the lower part is defined 
+        in the range [-∞ : -l2*σ][-l1*σ : +l1*σ][+l2*σ : +∞],
         where σ is the width of a Gaussian fit to the full profile.
+        Defaults to (1, 3), as used by Boisse+ (2011).
     """
     # fit a Gaussian to the profile
     c = gaussfit(x, y, [y.mean() - y.max(), x[y.argmin()], 1, y.mean()])
