@@ -18,7 +18,7 @@ setup(
     name='iCCF',
     version='0.1',
     description='Analysis of CCF profiles and activity indicators',
-    long_description=long_description,
+    #long_description=long_description,
     url='https://github.com/j-faria/iCCF',
     author='João Faria',
     author_email='joao.faria@astro.up.pt',
@@ -28,7 +28,7 @@ setup(
         #   4 - Beta
         #   5 - Production/Stable
         'Development Status :: 4 - Beta',
-        'Intended Audience :: Scientists',
+        #'Intended Audience :: Scientists',
         'License :: OSI Approved :: MIT License',
         # Specify the Python versions you support here. In particular, ensure
         # that you indicate whether you support Python 2, Python 3 or both.
