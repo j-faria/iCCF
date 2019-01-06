@@ -1,3 +1,4 @@
+import numpy as np 
 from numpy import exp, log, sqrt, inf
 from scipy import optimize
 
@@ -5,6 +6,17 @@ from scipy import optimize
 def gauss(x, p):
     """ A Gaussian function with parameters p = [A, x0, σ, offset]. """
     return p[0] * exp(-(x - p[1])**2 / (2 * p[2]**2)) + p[3]
+
+
+def gauss_partial_deriv(x, p):
+    """ Partial derivatives of a Gaussian with respect to each parameter """
+    A, x0, sig, offset = p
+    g = gauss(x, p)
+    dgdA = gauss(x, [1.0, x0, sig, 0.0])
+    dgdx0 = dgdA * ((x-x0)/sig**2)
+    dgdsig = dgdA * ((x-x0)**2/sig**3)
+    dgdoffset = np.ones_like(x)
+    return np.c_[dgdA, dgdx0, dgdsig, dgdoffset]
 
 
 def gaussfit(x, y, p0=None):
@@ -15,6 +27,7 @@ def gaussfit(x, y, p0=None):
     """
     f = lambda p, x, y: gauss(x, p) - y
     # f = lambda x, A, x0, sig, offset: gauss(x, [A, x0, sig, offset])
+    
     if p0 is None:
         p0 = []
         p0.append(y.mean() - y.max())  # guess the amplitude
@@ -25,8 +38,9 @@ def gaussfit(x, y, p0=None):
             p0.append(x[y.argmin()])
         p0.append(1)  # guess the sigma
         p0.append(y.mean())  # guess the offset
-
+    
     result = optimize.leastsq(f, p0, args=(x, y))
+
     result[0][2] = abs(result[0][2]) # positive sigma
     return result[0]
     # bounds = ([-inf, -inf, 0, -inf], [inf, inf, inf, inf])
