@@ -58,10 +58,9 @@ def bisector(x, y, center='min', k=2):
     return bis
 
 
-@dispatch(np.ndarray, np.ndarray)
 def BIS(x, y, down=(10, 40), up=(60, 90), full_output=False):
     """
-    ____Calculate the Bisector Inverse Slope (BIS) of a line profile given by x,y.
+    Calculate the Bisector Inverse Slope (BIS) of a line profile given by x,y.
     The BIS is defined as the difference between the average bisector in the 
     top and bottom sections of the line profile, where
     top = flux levels within `up`% 
@@ -119,27 +118,6 @@ def BIS(x, y, down=(10, 40), up=(60, 90), full_output=False):
     else:
         return BIS
 
-
-@dispatch(str)
-def BIS(filename, hdu_number=0, data_index=-1,
-        down=(10, 40), up=(60, 90), full_output=False):
-    """
-    ____Read the velocity and CCF arrays directly from a fits file.
-
-    Parameters
-    ----------
-    filename : str
-        The name of the fits file
-    hdu_number : int 
-        The index of the HDU where the CCF data is located.
-    data_index : int
-        The index of the data array used to extract the CCF.
-    down, up : tuples, optional
-        See above.
-    full_output : boolean, optional
-        See above.
-    """
-    print(filename)
 
 def BISplus(x, y):
     """ The BIS+ is the BIS with down=(10%, 20%) and up=(80%, 90%)."""
