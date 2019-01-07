@@ -41,7 +41,7 @@ setup(
         'Programming Language :: Python :: 3.7',
     ],
     packages=find_packages(exclude=['contrib', 'docs', 'tests']),  # Required
-    install_requires=['numpy'],
+    install_requires=['numpy', 'cached_property'],
     # extras_require={
     #     'dev': ['check-manifest'],
     #     'test': ['coverage'],

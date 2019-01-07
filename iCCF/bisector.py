@@ -4,7 +4,6 @@ from scipy.optimize import brentq
 from scipy.interpolate import InterpolatedUnivariateSpline
 from functools import partial
 from PyAstronomy.pyasl import intep
-from multipledispatch import dispatch
 
 from .gaussian import gaussfit
 
