@@ -18,3 +18,12 @@ Please cite these works if you use **iCCF**.
   - [Santerne et al 2015](https://doi.org/10.1093/mnras/stv1080)
   - [Lanza et al 2018](https://doi.org/10.1051/0004-6361/201731010)
   
+
+#### See also
+
+- Similar codes were developed by Figueira et al. A&A 557, A93 (2013)  
+  with a Python package available [here](https://bitbucket.org/pedrofigueira/line-profile-indicators/src/master/)
+  (described in Appendix A of Santos et al. A&A 566, A35 (2014))
+
+- A similar package (in IDL) was developed by Lanza et al. A&A 616, A155 (2018).  
+  It is available [here](https://www.ict.inaf.it/gitlab/antonino.lanza/HARPSN_spectral_line_profile_indicators).
