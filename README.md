@@ -1,12 +1,16 @@
 <p align="center">
   <img width = "450" src="https://github.com/j-faria/iCCF/blob/master/logo.png?raw=true"/>
-  <br>
-  Line profile asymmetry indicators
+  <!-- <br> -->
+  <!-- Line profile asymmetry indicators -->
 </p>
 
 
+This is an implementation of common line profile indicators
+measured from the cross-correlation function (CCF).
 
-Based on the works of others:
+All the indicators are based on the works of others.
+Please cite these works if you use **iCCF**.
+
   - Queloz et al 2001
   - Boisse et al 2011
   - Nardetto et al 2006
