@@ -4,7 +4,7 @@ import numpy as np
 from astropy.io import fits
 from cached_property import cached_property
 
-from .gaussian import gauss, gaussfit, FWHM as FWHMcalc, RV
+from .gaussian import gauss, gaussfit, FWHM as FWHMcalc, RV, contrast
 from .bisector import BIS, BIS_HARPS as BIS_HARPS_calc
 from .vspan import vspan
 from .wspan import wspan
@@ -32,13 +32,15 @@ def rdb_names(names):
 
 class Indicators:
     def __init__(self, rv, ccf, RV_on=True, FWHM_on=True, BIS_on=True,
-                 Vspan_on=True, Wspan_on=True, BIS_HARPS=False):
+                 Vspan_on=True, Wspan_on=True, contrast_on=True,
+                 BIS_HARPS=False):
         self.rv = rv
         self.ccf = ccf
         self.filename = None
         self.on_indicators = []
         if RV_on: self.on_indicators.append('RV')
         if FWHM_on: self.on_indicators.append('FWHM')
+        if contrast_on: self.on_indicators.append('contrast')
         if BIS_on: self.on_indicators.append('BIS')
         if Vspan_on: self.on_indicators.append('Vspan')
         if Wspan_on: self.on_indicators.append('Wspan')
@@ -109,6 +111,10 @@ class Indicators:
         return wspan(self.rv, self.ccf)
 
     @cached_property
+    def contrast(self):
+        return contrast(self.rv, self.ccf)
+
+    @cached_property
     def all(self):
         return tuple(self.__getattribute__(i) for i in self.on_indicators)
 
@@ -123,13 +129,13 @@ def indicators_from_files(files, rdb_format=True, show=True, show_bjd=True,
         I = Indicators.from_file(f, **kwargs)
         if j == 0 and show:
             if rdb_format:
-                lst = (['bjd'] + I.on_indicators_rdb) if show_bjd \
+                lst = (['jdb'] + I.on_indicators_rdb) if show_bjd \
                     else I.on_indicators_rdb
                 print('\t'.join(lst))
                 print('\t'.join([len(s) * '-' for s in lst]))
             else:
                 if show_bjd:
-                    print(['bjd'] + I.on_indicators)
+                    print(['jdb'] + I.on_indicators)
                 else:
                     print(I.on_indicators)
 
@@ -137,4 +143,4 @@ def indicators_from_files(files, rdb_format=True, show=True, show_bjd=True,
             print(
                 '\t'.join([f'{bjd:<.6f}'] + [f'{ind:<.5f}' for ind in I.all]))
         else:
-            print((bjd,) + I.all)
+            print((bjd, ) + I.all)
