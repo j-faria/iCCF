@@ -3,10 +3,10 @@ title: Welcome
 has_children: false
 ---
 
-<h2>Welcome to <i>i</i>CCF's documentation</h2>
+<h1>Welcome to <i>i</i>CCF's documentation</h1>
 
 [![Build Status](https://travis-ci.org/j-faria/iCCF.svg?branch=master)](https://travis-ci.org/j-faria/iCCF)
-[![Build Status](https://img.shields.io/github/license/j-faria/iCCF.svg)](https://github.com/j-faria/iCCF/blob/master/LICENSE)
+[![License](https://img.shields.io/github/license/j-faria/iCCF.svg)](https://github.com/j-faria/iCCF/blob/master/LICENSE)
 
 This package provides clear and well-documented implementations of common  
 line profile indicators measured from the cross-correlation function (CCF).
@@ -16,12 +16,12 @@ line profile indicators measured from the cross-correlation function (CCF).
 <!-- these indicators are sometimes used as tracers of stellar activity. -->
 <!-- {: .fs-5 .fw-300 } -->
 
-[Let's use it](#){: .btn .btn-primary .fs-5 .mb-4 .mb-md-0 .mr-2 }
+[I'm sold, let's use it](#){: .btn .btn-primary .fs-5 .mb-4 .mb-md-0 .mr-2 }
 [View it on GitHub](https://github.com/j-faria/iCCF){: .btn .fs-5 }
 
 ---
 
-#### Installation
+### Installation
 
 Using `pip`, installation is quite easy
 
