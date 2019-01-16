@@ -30,16 +30,16 @@ pip install iCCF
 ```
 
 
-#### Getting started
+## Getting started
 
 bla di bla
 
 
-#### Cite
+## Cite
 
 As of now, all the indicators implemented in **iCCF**
 are based on the works of others.
-Please cite the following works if you use this package.
+Please cite the appropriate paper if you use this package.
 
   - [Queloz et al 2001](https://doi.org/10.1051/0004-6361:20011308)
   - [Boisse et al 2011](https://doi.org/10.1051/0004-6361/201014354)
@@ -49,7 +49,7 @@ Please cite the following works if you use this package.
   - [Lanza et al 2018](https://doi.org/10.1051/0004-6361/201731010)
   
 
-#### See also
+## See also
 
 - Similar codes were developed by Figueira et al. A&A 557, A93 (2013)  
   with a Python package available [here](https://bitbucket.org/pedrofigueira/line-profile-indicators/src/master/)
