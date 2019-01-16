@@ -17,5 +17,5 @@ ax.text(2.8, -3, 'CCF', va='center', ha='center', fontsize=30, color='#CC3333',
         weight='bold')
 ax.axis('off')
 
-fig.savefig('logo.png')
+fig.savefig('logo.png', transparent=True)
 # plt.show()
