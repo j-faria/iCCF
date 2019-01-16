@@ -47,7 +47,7 @@ If you experience any problems during installation,
 ## Getting started
 
 If you want to read more about CCFs, go 
-[here]({{ site.baseurl }}{% link indicators.md %}).  
+[here]({{ site.baseurl }}{% link CCF.md %}).  
 The list and description of the indicators implemented in **iCCF** is
 [here]({{ site.baseurl }}{% link indicators.md %}).
 
