@@ -1,6 +1,7 @@
 ---
 title: Welcome
 has_children: false
+nav_order: 1
 ---
 
 <h1>Welcome to <i>i</i>CCF's documentation</h1>
