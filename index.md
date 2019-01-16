@@ -21,7 +21,7 @@ line profile indicators measured from the cross-correlation function (CCF).
 
 ---
 
-### Installation
+## Installation
 
 Using `pip`, installation is quite easy
 
