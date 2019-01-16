@@ -25,14 +25,14 @@ line profile indicators measured from the cross-correlation function (CCF).
 
 Using `pip`, installation is quite easy
 
-```
+```bash
 pip install iCCF
 ```
 
 
 You can also clone the GitHub repository and install it yourself
 
-```
+```bash
 git clone https://github.com/j-faria/iCCF
 cd iCCF
 python setup.py install # (or better yet, develop)
@@ -47,7 +47,8 @@ bla di bla
 
 As of now, all the indicators implemented in **iCCF**
 are based on the works of others.
-Please cite the appropriate paper if you use this package.
+Please cite the appropriate papers from the following list
+if you use this package.
 
   - [Queloz et al 2001](https://doi.org/10.1051/0004-6361:20011308)
   - [Boisse et al 2011](https://doi.org/10.1051/0004-6361/201014354)
