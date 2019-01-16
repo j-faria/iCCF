@@ -52,6 +52,25 @@ The list and description of the indicators implemented in **iCCF** is
 [here]({{ site.baseurl }}{% link indicators.md %}).
 
 
+Let's start by using **iCCF** with the provided example data.
+
+```python
+import iCCF
+
+rv, ccf = iCCF.utils.load_example_data()
+```
+
+This is a CCF calculated from an HARPS spectrum.
+It looks like this
+
+[![img]()](img)
+
+
+We can now load the arrays into an `Indicators` class
+
+```python
+i = iCCF.Indicators(rv, ccf)
+```
 
 
 ## Cite
