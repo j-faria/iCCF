@@ -9,7 +9,7 @@ has_children: false
 This package provides clear and well-documented implementations
 of common line profile indicators 
 measured from the cross-correlation function (CCF).
-{: .fs-6 .fw-300 }
+{: .fs-5 .fw-300 }
 
 When searching for exoplanets with the radial-velocity (RV) method,
 these indicators are sometimes used as tracers of stellar activity.
