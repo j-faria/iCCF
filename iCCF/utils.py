@@ -1,3 +1,4 @@
+import os
 import re
 import numpy as np
 
@@ -31,3 +32,16 @@ def numerical_gradient(rv, ccf):
     the boundaries. The gradient has the same shape as the input array.
     """
     return np.gradient(ccf, rv)
+
+
+def find_myself():
+    """ Return the path to iCCF's source. """
+    thisdir = os.path.dirname(os.path.realpath(__file__))
+    topdir = os.path.dirname(thisdir)
+    return topdir
+
+
+def load_example_data():
+    """ Load the example CCF stored in iCCF/example_data """
+    topdir = find_myself()
+    return np.load(os.path.join(topdir, 'example_data', 'CCF1.npy'))
