@@ -18,12 +18,12 @@ Plus other utility functions to work with CCFs.
 <!-- these indicators are sometimes used as tracers of stellar activity. -->
 <!-- {: .fs-5 .fw-300 } -->
 
-[I'm sold, let's use it](#){: .btn .btn-primary .fs-5 .mb-4 .mb-md-0 .mr-2 }
+[I'm sold, let's use it](#install){: .btn .btn-primary .fs-5 .mb-4 .mb-md-0 .mr-2 }
 [View it on GitHub](https://github.com/j-faria/iCCF){: .btn .fs-5 }
 
 ---
 
-## Installation
+## Installation <a name="install"></a>
 
 Using `pip`, installation is quite easy
 
@@ -62,8 +62,8 @@ Please cite the appropriate papers from the following list
 if you use this package.
 
   - [Queloz et al 2001](https://doi.org/10.1051/0004-6361:20011308)
-  - [Boisse et al 2011](https://doi.org/10.1051/0004-6361/201014354)
   - [Nardetto et al 2006](https://doi.org/10.1051/0004-6361:20054333)
+  - [Boisse et al 2011](https://doi.org/10.1051/0004-6361/201014354)
   - [Figueira et al 2013](https://www.aanda.org/articles/aa/abs/2013/09/aa20779-12/aa20779-12.html)
   - [Santerne et al 2015](https://doi.org/10.1093/mnras/stv1080)
   - [Lanza et al 2018](https://doi.org/10.1051/0004-6361/201731010)
