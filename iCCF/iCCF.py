@@ -1,6 +1,7 @@
 from collections import Iterable
 
 import numpy as np
+from os.path import basename
 from astropy.io import fits
 from cached_property import cached_property
 
@@ -47,6 +48,14 @@ class Indicators:
         self.on_indicators_rdb = rdb_names(self.on_indicators)
 
         self._use_bis_from_HARPS = BIS_HARPS
+
+    def __repr__(self):
+        if self.filename is None:
+            r = f'CCFindicators(RVmin={self.rv.min()}; '\
+                f'RVmax={self.rv.max()}; size={self.rv.size})'
+        else:
+            r = f'CCFindicators(CCF from {basename(self.filename)})'
+        return r
 
     @classmethod
     def from_file(cls, filename, hdu_number=0, data_index=-1, **kwargs):
