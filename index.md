@@ -9,7 +9,8 @@ has_children: false
 [![License](https://img.shields.io/github/license/j-faria/iCCF.svg)](https://github.com/j-faria/iCCF/blob/master/LICENSE)
 
 This package provides clear and well-documented implementations of common  
-line profile indicators measured from the cross-correlation function (CCF).
+line profile indicators measured from the cross-correlation function (CCF).  
+Plus other utility functions to work with CCFs.
 {: .fs-5 .fw-300 }
 
 <!-- When searching for exoplanets with the radial-velocity (RV) method, -->
@@ -37,6 +38,10 @@ git clone https://github.com/j-faria/iCCF
 cd iCCF
 python setup.py install # (or better yet, develop)
 ```
+
+If you experience any problems during installation,
+[open an issue](https://github.com/j-faria/iCCF/issues) on GitHub.
+
 
 ## Getting started
 
