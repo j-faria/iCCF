@@ -3,9 +3,17 @@ title: Welcome
 has_children: false
 ---
 
-Just the Docs gives your documentation a jumpstart 
-with a responsive Jekyll theme that is easily customizable and hosted on GitHub pages.
-{: .fs-6 .fw-300 }
+<h2>Welcome to <i>i</i>CCF's documentation</h2>
 
-[Get started now](#){: .btn .btn-primary .fs-5 .mb-4 .mb-md-0 .mr-2 } 
+
+This package provides clear and well-documented implementations
+of common line profile indicators 
+measured from the cross-correlation function (CCF).
+
+When searching for exoplanets with the radial-velocity (RV) method,
+these indicators are sometimes used as tracers of stellar activity.
+
+[Get started](#){: .btn .btn-primary .fs-5 .mb-4 .mb-md-0 .mr-2 }
 [View it on GitHub](https://github.com/j-faria/iCCF){: .btn .fs-5 }
+
+---
