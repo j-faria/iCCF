@@ -11,9 +11,10 @@ with open(path.join(here, 'README.md'), encoding='utf-8') as f:
 
 setup(
     name='iCCF',
-    version='0.1',
+    version='0.3',
     description='Analysis of CCF profiles and activity indicators',
-    #long_description=long_description,
+    long_description=long_description,
+    long_description_content_type='text/markdown',
     url='https://github.com/j-faria/iCCF',
     author='João Faria',
     author_email='joao.faria@astro.up.pt',
@@ -26,6 +27,6 @@ setup(
         'Programming Language :: Python :: 3.6',
         'Programming Language :: Python :: 3.7',
     ],
-    packages=find_packages(exclude=['contrib', 'docs', 'tests']),
+    packages=find_packages(),
     install_requires=['numpy', 'cached_property'],
 )
