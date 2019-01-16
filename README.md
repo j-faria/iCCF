@@ -8,6 +8,8 @@
 This is an implementation of common line profile indicators
 measured from the cross-correlation function (CCF).
 
+[![Build Status](https://travis-ci.org/j-faria/iCCF.svg?branch=master)](https://travis-ci.org/j-faria/iCCF)
+
 All the indicators are based on the works of others.
 Please cite these works if you use **iCCF**.
 
