@@ -30,6 +30,14 @@ pip install iCCF
 ```
 
 
+You can also clone the GitHub repository and install it yourself
+
+```
+git clone https://github.com/j-faria/iCCF
+cd iCCF
+python setup.py install # (or better yet, develop)
+```
+
 ## Getting started
 
 bla di bla
