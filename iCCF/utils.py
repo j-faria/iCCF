@@ -2,6 +2,9 @@ import os
 import re
 import numpy as np
 
+_c = 299792.458
+
+
 # from https://stackoverflow.com/a/30141358/1352183
 def running_mean(x, N=2):
     cumsum = np.cumsum(np.insert(x, 0, 0))
@@ -10,7 +13,25 @@ def running_mean(x, N=2):
 
 # from https://stackoverflow.com/a/16090640
 def natsort(s):
-    return [int(t) if t.isdigit() else t.lower() for t in re.split(r'(\d+)', s)]
+    return [
+        int(t) if t.isdigit() else t.lower() for t in re.split(r'(\d+)', s)
+    ]
+
+
+def doppler_shift_wave(wave, rv):
+    """ 
+    Doppler shift the wavelength array `wave` by the radial velocity `rv` [km/s].
+    Note: positive values for `rv` indicate a red-shift. Negative values 
+    indicate a blue-shift.
+
+    Parameters
+    ----------
+    wave : array or float
+        Original wavelength to be shifted
+    rv : float
+        Radial velocity [in km/s]
+    """
+    return wave * (1 + rv / _c)
 
 
 def numerical_gradient(rv, ccf):
