@@ -5,5 +5,8 @@ from .gaussian import gauss, gaussfit, RV, FWHM, contrast
 from .bigaussian import bigauss, bigaussfit
 from .vspan import vspan
 from .wspan import wspan
-from .iCCF import Indicators, indicators_from_files
+from .meta import makeCCF
 from . import utils
+
+from .iCCF import Indicators, indicators_from_files
+from .iCCF import EPS
