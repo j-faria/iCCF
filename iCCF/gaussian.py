@@ -52,6 +52,9 @@ def gaussfit(x, y, p0=None, return_errors=False, use_deriv=True):
         Whether to use partial derivatives of the Gaussian (wrt the parameters)
         as Jacobian in the fit. If False, the Jacobian will be estimated.
     """
+    if (y == 0).all():
+        return np.nan * np.ones(4)
+
     # f = lambda x, A, x0, sig, offset: gauss(x, [A, x0, sig, offset])
     f = lambda p, x, y: gauss(x, p) - y
     if use_deriv:
