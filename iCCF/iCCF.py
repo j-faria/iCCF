@@ -12,6 +12,9 @@ from .wspan import wspan
 from .keywords import getRVarray, getBJD
 
 
+EPS = 1e-5 # all indicators are accurate up to this epsilon
+
+
 def rdb_names(names):
     """ Return the usual .rdb format names. """
     r = []
@@ -32,9 +35,17 @@ def rdb_names(names):
 
 
 class Indicators:
+    """ Class to hold CCF indicators """
     def __init__(self, rv, ccf, RV_on=True, FWHM_on=True, BIS_on=True,
                  Vspan_on=True, Wspan_on=True, contrast_on=True,
                  BIS_HARPS=False):
+        """
+        The default constructor takes `rv` and `ccf` arrays as input, see
+        `Indicators.from_file` for another way to create the object from a CCF
+        fits file. Keyword parameters turn specific indicators on or off.
+        Is `BIS_HARPS` is True, the BIS is calculated using the same routine as
+        in the HARPS pipeline.
+        """
         self.rv = rv
         self.ccf = ccf
         self.filename = None
@@ -93,6 +104,7 @@ class Indicators:
 
         I = cls(rv, ccf, **kwargs)
         I.filename = filename
+        I.HDU = hdul
 
         return I
 
@@ -123,7 +135,7 @@ class Indicators:
     def contrast(self):
         return contrast(self.rv, self.ccf)
 
-    @cached_property
+    @property
     def all(self):
         return tuple(self.__getattribute__(i) for i in self.on_indicators)
 
