@@ -56,7 +56,7 @@ class Indicators:
         self.on_indicators = []
         if RV_on: 
             self.on_indicators.append('RV')
-            self.on_indicators.append('RVerr')
+            self.on_indicators.append('RVerror')
         if FWHM_on: self.on_indicators.append('FWHM')
         if contrast_on: self.on_indicators.append('contrast')
         if BIS_on: self.on_indicators.append('BIS')
@@ -167,7 +167,10 @@ class Indicators:
         return writers.to_rdb(self, filename, clobber)
 
 def indicators_from_files(files, rdb_format=True, show=True, show_bjd=True,
-                          **kwargs):
+                          sort_bjd=True, **kwargs):
+
+    if sort_bjd:
+        files = sorted(files, key=getBJD)
 
     for j, f in enumerate(files):
         if show_bjd:
