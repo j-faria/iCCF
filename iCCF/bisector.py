@@ -3,9 +3,15 @@ import matplotlib.pyplot as plt
 from scipy.optimize import brentq
 from scipy.interpolate import InterpolatedUnivariateSpline
 from functools import partial
-from PyAstronomy.pyasl import intep
+
+try:
+    from PyAstronomy.pyasl import intep
+    intep_available = True
+except ImportError:
+    intep_available = False
 
 from .gaussian import gaussfit
+
 
 def bisector(x, y, center='min', k=2):
     """ 
@@ -29,13 +35,16 @@ def bisector(x, y, center='min', k=2):
         # k-th order spline interpolation
         spl = InterpolatedUnivariateSpline(x, y, k=k)
     elif k == 'intep':
+        if not intep_available:
+            raise ImportError(
+                "To use 'intep', please install the PyAstronomy package")
         spl = partial(intep, x, y)
     else:
         raise ValueError('In `bisector`, k should be int or "intep".')
 
     if center.lower() == 'min':
         # maybe the ccf is upside down?
-        if y[x.size // 2] > y[0]: # yap
+        if y[x.size // 2] > y[0]:  # yap
             center = x[y.argmax()]
         else:
             center = x[y.argmin()]
@@ -109,7 +118,7 @@ def BIS(x, y, down=(10, 40), up=(60, 90), full_output=False):
     RV_bot = bisf(depth[(bottom_limit1 < depth) & (depth < bottom_limit2)])
     # difference of the average bisectors
     BIS = RV_top.mean() - RV_bot.mean()
-    
+
     if full_output:
         return BIS, c, bot, ran, \
                (bottom_limit1, bottom_limit2), (top_limit1, top_limit2), \
@@ -130,7 +139,7 @@ def BISminus(x, y):
 
 def BIS_plot(x, y, down=(10, 40), up=(60, 90), rvunits='km/s'):
     """ Make a pretty plot of the line profile and the BIS """
-    # calculate 
+    # calculate
     out = BIS(x, y, down, up, full_output=True)
     # unpack the output
     bis, c, bot, ran, \
@@ -139,7 +148,7 @@ def BIS_plot(x, y, down=(10, 40), up=(60, 90), rvunits='km/s'):
 
     fig, ax = plt.subplots(1, 1)
     ax.plot(x, y, 'o-', ms=3, alpha=0.2)
-    
+
     mask_top = (top_limit1 < y) & (y < top_limit2)
     ax.plot(x[mask_top], y[mask_top], 'og', ms=4, alpha=0.6)
 
@@ -157,55 +166,61 @@ def BIS_plot(x, y, down=(10, 40), up=(60, 90), rvunits='km/s'):
     ax.set(xlabel=f'RV [{rvunits}]', ylabel='Flux')
     ax.legend(['observed CCF', 'BIS regions', 'bisector', 'mid-points'])
     ax.set_title(f'BIS {down};{up}  {bis:7.4f} {rvunits}')
-    
+
     fig.tight_layout()
     plt.show()
 
 
-
-
 def normalize_ccf(rv, ccf):
-    p = gaussfit(rv, ccf, [ccf.mean() - ccf.max(), rv[ccf.argmin()], 1, ccf.mean()])
+    p = gaussfit(rv, ccf,
+                 [ccf.mean() - ccf.max(), rv[ccf.argmin()], 1,
+                  ccf.mean()])
     a, _, _, off = p
-    nccf = -off/a*(1.-ccf/off)
+    nccf = -off / a * (1. - ccf / off)
     return nccf
-
 
 
 def Lovis_interpolate(rv, ccf):
     # err = np.ones(len(ccf), 'd')
-    p = gaussfit(rv, ccf, [ccf.mean() - ccf.max(), rv[ccf.argmin()], 1, ccf.mean()])
+    p = gaussfit(rv, ccf,
+                 [ccf.mean() - ccf.max(), rv[ccf.argmin()], 1,
+                  ccf.mean()])
     k, v0, sigma, c = p
-    norm_ccf = -c/k*(1.-ccf/c)
+    norm_ccf = -c / k * (1. - ccf / c)
     nstep = 100
     margin = 5
-    depth = np.arange(nstep-2*margin+1)/nstep + float(margin)/nstep
+    depth = np.arange(nstep - 2 * margin + 1) / nstep + float(margin) / nstep
 
-    p = np.zeros([len(ccf),3],'d')
-    bis_b = np.zeros(len(depth),'d')
-    bis_r = np.zeros(len(depth),'d')
+    p = np.zeros([len(ccf), 3], 'd')
+    bis_b = np.zeros(len(depth), 'd')
+    bis_r = np.zeros(len(depth), 'd')
 
-    for i in range(len(ccf)-1):
-        if (max(norm_ccf[i],norm_ccf[i+1]) >= depth[0]) & (min(norm_ccf[i],norm_ccf[i+1]) <= depth[-1]):
-            v = (rv[i]+rv[i+1])/2.
-            dccfdRV = -(v-v0)/sigma**2 * np.exp(-(v-v0)**2/2/sigma**2)
-            d2ccfdRV2 = ((v-v0)**2/sigma**2-1)/sigma**2 * np.exp(-(v-v0)**2/2/sigma**2)
-            d2RVdccf2 = -d2ccfdRV2/dccfdRV**3
-            p[i,2] = d2RVdccf2/2
-            p[i,1] = (rv[i+1]-rv[i]-p[i,2]*(norm_ccf[i+1]**2-norm_ccf[i]**2))/(norm_ccf[i+1]-norm_ccf[i])
-            p[i,0] = rv[i] - p[i,1]*norm_ccf[i] - p[i,2]*norm_ccf[i]**2
+    for i in range(len(ccf) - 1):
+        if (max(norm_ccf[i], norm_ccf[i + 1]) >= depth[0]) & (min(
+                norm_ccf[i], norm_ccf[i + 1]) <= depth[-1]):
+            v = (rv[i] + rv[i + 1]) / 2.
+            dccfdRV = -(v - v0) / sigma**2 * np.exp(
+                -(v - v0)**2 / 2 / sigma**2)
+            d2ccfdRV2 = ((v - v0)**2 / sigma**2 - 1) / sigma**2 * np.exp(
+                -(v - v0)**2 / 2 / sigma**2)
+            d2RVdccf2 = -d2ccfdRV2 / dccfdRV**3
+            p[i, 2] = d2RVdccf2 / 2
+            p[i, 1] = (rv[i + 1] - rv[i] - p[i, 2] *
+                       (norm_ccf[i + 1]**2 - norm_ccf[i]**2)) / (
+                           norm_ccf[i + 1] - norm_ccf[i])
+            p[i, 0] = rv[i] - p[i, 1] * norm_ccf[i] - p[i, 2] * norm_ccf[i]**2
 
     for j in range(len(depth)):
         i_b = norm_ccf.argmax()
-        while (norm_ccf[i_b] > depth[j]) & (i_b > 1): 
-            i_b = i_b-1
+        while (norm_ccf[i_b] > depth[j]) & (i_b > 1):
+            i_b = i_b - 1
         i_r = norm_ccf.argmax()
-        while (norm_ccf[i_r+1] > depth[j]) & (i_r < len(ccf)-2): 
-            i_r = i_r+1
-        bis_b[j] = p[i_b,0] + p[i_b,1]*depth[j] + p[i_b,2]*depth[j]**2
-        bis_r[j] = p[i_r,0] + p[i_r,1]*depth[j] + p[i_r,2]*depth[j]**2
-    
-    return bis_b, bis_r, (1 + k*depth/c)*c
+        while (norm_ccf[i_r + 1] > depth[j]) & (i_r < len(ccf) - 2):
+            i_r = i_r + 1
+        bis_b[j] = p[i_b, 0] + p[i_b, 1] * depth[j] + p[i_b, 2] * depth[j]**2
+        bis_r[j] = p[i_r, 0] + p[i_r, 1] * depth[j] + p[i_r, 2] * depth[j]**2
+
+    return bis_b, bis_r, (1 + k * depth / c) * c
 
 
 def BIS_HARPS(rv, ccf, down=(10, 40), up=(60, 90)):
@@ -230,51 +245,58 @@ def BIS_HARPS(rv, ccf, down=(10, 40), up=(60, 90)):
     # check the limits
     assert 0 < down[0] < 100 and 0 < down[1] < 100 and down[0] < down[1]
     assert 0 < up[0] < 100 and 0 < up[1] < 100 and up[0] < up[1]
-    down = tuple(d/100 for d in down)
-    up = tuple(u/100 for u in up)
+    down = tuple(d / 100 for d in down)
+    up = tuple(u / 100 for u in up)
 
     # err = np.ones(len(ccf), 'd')
-    p = gaussfit(rv, ccf, [ccf.mean() - ccf.max(), rv[ccf.argmin()], 1, ccf.mean()])
+    p = gaussfit(rv, ccf,
+                 [ccf.mean() - ccf.max(), rv[ccf.argmin()], 1,
+                  ccf.mean()])
     k, v0, sigma, c = p
-    norm_ccf = -c/k*(1.-ccf/c)
+    norm_ccf = -c / k * (1. - ccf / c)
     nstep = 100
     margin = 5
-    depth = np.arange(nstep-2*margin+1)/nstep + float(margin)/nstep
+    depth = np.arange(nstep - 2 * margin + 1) / nstep + float(margin) / nstep
 
-    p = np.zeros([len(ccf),3],'d')
-    bis_b = np.zeros(len(depth),'d')
-    bis_r = np.zeros(len(depth),'d')
+    p = np.zeros([len(ccf), 3], 'd')
+    bis_b = np.zeros(len(depth), 'd')
+    bis_r = np.zeros(len(depth), 'd')
 
-    for i in range(len(ccf)-1):
-        if (max(norm_ccf[i],norm_ccf[i+1]) >= depth[0]) & (min(norm_ccf[i],norm_ccf[i+1]) <= depth[-1]):
-            v = (rv[i]+rv[i+1])/2.
-            dccfdRV = -(v-v0)/sigma**2 * np.exp(-(v-v0)**2/2/sigma**2)
-            d2ccfdRV2 = ((v-v0)**2/sigma**2-1)/sigma**2 * np.exp(-(v-v0)**2/2/sigma**2)
-            d2RVdccf2 = -d2ccfdRV2/dccfdRV**3
-            p[i,2] = d2RVdccf2/2
-            p[i,1] = (rv[i+1]-rv[i]-p[i,2]*(norm_ccf[i+1]**2-norm_ccf[i]**2))/(norm_ccf[i+1]-norm_ccf[i])
-            p[i,0] = rv[i] - p[i,1]*norm_ccf[i] - p[i,2]*norm_ccf[i]**2
+    for i in range(len(ccf) - 1):
+        if (max(norm_ccf[i], norm_ccf[i + 1]) >= depth[0]) & (min(
+                norm_ccf[i], norm_ccf[i + 1]) <= depth[-1]):
+            v = (rv[i] + rv[i + 1]) / 2.
+            dccfdRV = -(v - v0) / sigma**2 * np.exp(
+                -(v - v0)**2 / 2 / sigma**2)
+            d2ccfdRV2 = ((v - v0)**2 / sigma**2 - 1) / sigma**2 * np.exp(
+                -(v - v0)**2 / 2 / sigma**2)
+            d2RVdccf2 = -d2ccfdRV2 / dccfdRV**3
+            p[i, 2] = d2RVdccf2 / 2
+            p[i, 1] = (rv[i + 1] - rv[i] - p[i, 2] *
+                       (norm_ccf[i + 1]**2 - norm_ccf[i]**2)) / (
+                           norm_ccf[i + 1] - norm_ccf[i])
+            p[i, 0] = rv[i] - p[i, 1] * norm_ccf[i] - p[i, 2] * norm_ccf[i]**2
 
     for j in range(len(depth)):
         i_b = norm_ccf.argmax()
-        while (norm_ccf[i_b] > depth[j]) & (i_b > 1): 
-            i_b = i_b-1
+        while (norm_ccf[i_b] > depth[j]) & (i_b > 1):
+            i_b = i_b - 1
         i_r = norm_ccf.argmax()
-        while (norm_ccf[i_r+1] > depth[j]) & (i_r < len(ccf)-2): 
-            i_r = i_r+1
-        bis_b[j] = p[i_b,0] + p[i_b,1]*depth[j] + p[i_b,2]*depth[j]**2
-        bis_r[j] = p[i_r,0] + p[i_r,1]*depth[j] + p[i_r,2]*depth[j]**2
+        while (norm_ccf[i_r + 1] > depth[j]) & (i_r < len(ccf) - 2):
+            i_r = i_r + 1
+        bis_b[j] = p[i_b, 0] + p[i_b, 1] * depth[j] + p[i_b, 2] * depth[j]**2
+        bis_r[j] = p[i_r, 0] + p[i_r, 1] * depth[j] + p[i_r, 2] * depth[j]**2
 
-    bis = (bis_b+bis_r)/2.
-   
+    bis = (bis_b + bis_r) / 2.
+
     for i in range(len(bis)):
-        if not np.isfinite(bis[i]): 
-            bis = np.zeros(len(depth),'d')
-   
+        if not np.isfinite(bis[i]):
+            bis = np.zeros(len(depth), 'd')
+
     qq = np.greater_equal(depth, down[0]) * np.less_equal(depth, down[1])
     RV_top = np.mean(np.compress(qq, bis))
     qq = np.greater_equal(depth, up[0]) * np.less_equal(depth, up[1])
     RV_bottom = np.mean(np.compress(qq, bis))
     span = RV_top - RV_bottom
-   
-    return span #(1 + k*depth/c)*c, bis, span, v0, depth
+
+    return span  #(1 + k*depth/c)*c, bis, span, v0, depth
