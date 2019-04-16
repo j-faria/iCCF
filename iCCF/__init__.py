@@ -8,5 +8,5 @@ from .wspan import wspan
 from .meta import makeCCF
 from . import utils
 
+from .iCCF import EPS, nEPS
 from .iCCF import Indicators, indicators_from_files
-from .iCCF import EPS

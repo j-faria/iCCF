@@ -2,17 +2,21 @@ from collections import Iterable
 
 import numpy as np
 from os.path import basename
+import math
+import warnings
 from astropy.io import fits
 from cached_property import cached_property
 
-from .gaussian import gauss, gaussfit, FWHM as FWHMcalc, RV, contrast
+from .gaussian import gauss, gaussfit, FWHM as FWHMcalc, RV, RVerror, contrast
 from .bisector import BIS, BIS_HARPS as BIS_HARPS_calc
 from .vspan import vspan
 from .wspan import wspan
 from .keywords import getRVarray, getBJD
+from . import writers
 
 
 EPS = 1e-5 # all indicators are accurate up to this epsilon
+nEPS = abs(math.floor(math.log(EPS, 10))) # number of decimals for output
 
 
 def rdb_names(names):
@@ -50,7 +54,9 @@ class Indicators:
         self.ccf = ccf
         self.filename = None
         self.on_indicators = []
-        if RV_on: self.on_indicators.append('RV')
+        if RV_on: 
+            self.on_indicators.append('RV')
+            self.on_indicators.append('RVerr')
         if FWHM_on: self.on_indicators.append('FWHM')
         if contrast_on: self.on_indicators.append('contrast')
         if BIS_on: self.on_indicators.append('BIS')
@@ -59,6 +65,9 @@ class Indicators:
         self.on_indicators_rdb = rdb_names(self.on_indicators)
 
         self._use_bis_from_HARPS = BIS_HARPS
+
+        self._EPS = EPS
+        self._nEPS = nEPS
 
     def __repr__(self):
         if self.filename is None:
@@ -113,6 +122,18 @@ class Indicators:
         return RV(self.rv, self.ccf)
 
     @cached_property
+    def RVerror(self):
+        try:
+            eccf = self.HDU[2].data[-1,:] # for ESPRESSO
+        except Exception as e:
+            warnings.warn(e)
+            warnings.warn('Cannot access CCF uncertainties, using 1.0.')
+            eccf = np.ones_like(self.rv)
+        finally:
+            return RVerror(self.rv, self.ccf, eccf)
+
+
+    @cached_property
     def FWHM(self):
         return FWHMcalc(self.rv, self.ccf)
 
@@ -139,6 +160,11 @@ class Indicators:
     def all(self):
         return tuple(self.__getattribute__(i) for i in self.on_indicators)
 
+    def to_dict(self):
+        return writers.to_dict(self)
+    
+    def to_rdb(self, filename='stdout', clobber=False):
+        return writers.to_rdb(self, filename, clobber)
 
 def indicators_from_files(files, rdb_format=True, show=True, show_bjd=True,
                           **kwargs):

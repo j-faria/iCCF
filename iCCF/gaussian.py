@@ -2,6 +2,7 @@ import numpy as np
 from numpy import exp, log, sqrt, inf
 from scipy import optimize
 
+from .utils import numerical_gradient
 
 def gauss(x, p):
     """ A Gaussian function with parameters p = [A, x0, σ, offset]. """
@@ -104,6 +105,25 @@ def RV(rv, ccf):
     """
     _, rv, _, _ = gaussfit(rv, ccf)
     return rv
+
+
+def RVerror(rv, ccf, eccf):
+    """
+    Calculate the uncertainty on the radial velocity, following the same steps
+    as the ESPRESSO DRS pipeline.
+
+    Parameters
+    ----------
+    rv : array
+        The velocity values where the CCF is defined.
+    ccf : array
+        The values of the CCF profile.
+    eccf : array
+        The errors on each value of the CCF profile.
+    """
+    ccf_slope = numerical_gradient(rv, ccf)
+    ccf_sum = np.sum((ccf_slope / eccf)**2)
+    return 1.0 / sqrt(ccf_sum)
 
 
 def FWHM(rv, ccf):
