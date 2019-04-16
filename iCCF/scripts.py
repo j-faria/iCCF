@@ -8,6 +8,7 @@ import argparse
 
 from . import iCCF
 
+
 def _parse_args_fits_to_rdb():
     desc = """
     This script takes a list of CCF fits files and outputs CCF activity 
@@ -19,10 +20,11 @@ def _parse_args_fits_to_rdb():
     )
     # parser.add_argument('column', nargs=1, type=int,
     #                     help='which column to use for histogram')
-    parser.add_argument('--hdu', nargs=1, type=int,
-                        help='HDU number')
+    parser.add_argument('--hdu', nargs=1, type=int, help='HDU number')
     parser.add_argument('--sort', action='store_true', default=True,
                         help='sort the output by the MJD-OBS keyword')
+    parser.add_argument('--bis-harps', action='store_true', default=True,
+                        help='do the bisector calculation as in HARPS')
     # parser.add_argument('--code', nargs=1, type=str,
     #                     help='code to generate "theoretical" samples '\
     #                          'to compare to the prior. \n'\
@@ -37,6 +39,13 @@ def _parse_args_fits_to_rdb():
 
 def fits_to_rdb():
     args = _parse_args_fits_to_rdb()
+    print(args)
+    bisHARPS = args.bis_harps
     hdu_number = args.hdu[0]
     files = [line.strip() for line in sys.stdin]
-    iCCF.indicators_from_files(files, hdu_number=hdu_number, sort_bjd=args.sort)
+    iCCF.indicators_from_files(
+        files,
+        hdu_number=hdu_number,
+        sort_bjd=args.sort,
+        BIS_HARPS=bisHARPS,
+    )
