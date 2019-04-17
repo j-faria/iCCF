@@ -27,7 +27,7 @@ def bisector(x, y, center='min', k=2):
         If 'min', the bisector starts at the minimum of `y`. 
         If 'rv', the bisector stats at the center of a Gaussian fit to `x`,`y`.
     k : int, str
-        If int, interpolation order (k=2 - quadratic is the default).
+        If integer, interpolation order (k=2 - quadratic is the default).
         If k='intep', use the INTEP routine from Hill, PDAO 16, 67 (1982) as it
         is implemented in PyAstronomy.
     """
@@ -40,7 +40,7 @@ def bisector(x, y, center='min', k=2):
                 "To use 'intep', please install the PyAstronomy package")
         spl = partial(intep, x, y)
     else:
-        raise ValueError('In `bisector`, k should be int or "intep".')
+        raise ValueError('In `bisector`, k should be integer or "intep".')
 
     if center.lower() == 'min':
         # maybe the ccf is upside down?

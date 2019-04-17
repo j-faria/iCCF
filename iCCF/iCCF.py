@@ -1,6 +1,7 @@
 from collections import Iterable
 
 import numpy as np
+import matplotlib.pyplot as plt
 from os.path import basename
 import math
 import warnings
@@ -8,7 +9,7 @@ from astropy.io import fits
 from cached_property import cached_property
 
 from .gaussian import gauss, gaussfit, FWHM as FWHMcalc, RV, RVerror, contrast
-from .bisector import BIS, BIS_HARPS as BIS_HARPS_calc
+from .bisector import BIS, BIS_HARPS as BIS_HARPS_calc, bisector
 from .vspan import vspan
 from .wspan import wspan
 from .keywords import getRVarray, getBJD
@@ -165,6 +166,24 @@ class Indicators:
     
     def to_rdb(self, filename='stdout', clobber=False):
         return writers.to_rdb(self, filename, clobber)
+
+
+    def plot(self, show_bisector=False):
+        fig, ax = plt.subplots(constrained_layout=True)
+        ax.plot(self.rv, self.ccf, 's-', ms=3)
+        if show_bisector:
+            out = BIS(self.rv, self.ccf, full_output=True)
+            # BIS, c, bot, ran, \
+            #    (bottom_limit1, bottom_limit2), (top_limit1, top_limit2), \
+            #    fl1, fl2, bisf
+            bisf = out[-1]
+            top_limit = out[-4][1]
+            bot_limit = out[-5][0]
+            yy = np.linspace(bot_limit, top_limit, 100)
+            ax.plot(bisf(yy), yy, 'k')
+        ax.set(xlabel='RV [km/s]', ylabel='CCF')
+        plt.show()
+
 
 def indicators_from_files(files, rdb_format=True, show=True, show_bjd=True,
                           sort_bjd=True, **kwargs):
