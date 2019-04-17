@@ -1,10 +1,16 @@
 language: python
-
 python:
-  - "3.6"
-
+- '3.6'
 install:
-  - pip install -r requirements.txt
-
+- pip install -r requirements.txt
 script:
-  - pytest iCCF/tests
+- pytest iCCF/tests
+deploy:
+  provider: pypi
+  user: jfaria
+  password:
+    secure: vhbWIO3ekHkYVCW+05qmxhyq2ci66GPHbo3YmYRqacjgAk6bgVzBUSEP7j2+FlEZaCnljhdHTqypIbWOdvcwZ58wFb/hTG5eS4YsZTIrAHe4jn/c6mXfAOk05zi7QiXLRxsKoYNRjx3Dx2zJY8aS9LJVorz91f9hOvvF9fiwVwZaAbyjPCuw94WGvTsfA/uGqKIEkrwOAIkO2piSgIIbAic++lWl8GgzyPrhCtRqz8tA0HzpbYEU2WQf4fCgkhgfFZg4PbocWcpFyUQLyEP7PyW/iiUnimLUhuNU50cq7cOdqN3Czt2xXYm6/1LpPrXCXmjDKfdWCeuOylj2+CAp5LvSY+DhaGNDy+EO3PmfD1ZUJ0LMrjBpBqbLQVXw4p7EXVnFnXIojFLaI6Leo1Sf+xn4fhoZyzDlZxkBJe4Iv+B2qAZyD+/+iPTklCIgDEq61w35ncMimnYaT1waixZsXfTapA2PObW+Yh6RoiXFrAZ09289Ojaha7V5T4MHN+ID8KEEIqZXfXC3jmYL8Tx4EzUch9F4Tnf1nJtf6UZ3TaGk6Id0p0Sve487E47zt/y50MBjhh0JKdL5Fp1Jd+Bx0nElbrUXuFBePvySovGsdOdWpsKVrE7b04475CZqXTUg3TFq7GqI/qNAHv8lu9LFW0gDgGk0qQCFN/18U3Jwmxk=
+  on:
+    tags: true
+    branch: master
+  skip_existing: true
