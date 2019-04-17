@@ -60,10 +60,10 @@ import iCCF
 rv, ccf = iCCF.utils.load_example_data()
 ```
 
-This is a CCF calculated from an HARPS spectrum.
+This is a CCF calculated from a HARPS spectrum.
 It looks like this
 
-[![img]()](img)
+[![img](example_ccf.png)](img)
 
 
 We can now load the arrays into an `Indicators` class
@@ -72,7 +72,23 @@ We can now load the arrays into an `Indicators` class
 i = iCCF.Indicators(rv, ccf)
 ```
 
+and get the CCF indicators as attributes
 
+```python
+i.RV
+i.FWHM
+i.BIS
+```
+
+The same thing can be accomplished by reading from a CCF fits file
+
+```python
+i = iCCF.Indicators.from_file('CCF_file.fits')
+```
+
+
+
+----
 ## Cite
 
 As of now, all the indicators implemented in **iCCF**
