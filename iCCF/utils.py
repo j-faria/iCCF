@@ -18,7 +18,7 @@ def natsort(s):
     ]
 
 
-def doppler_shift_wave(wave, rv):
+def doppler_shift_wave(wave, rv, f=1.0):
     """ 
     Doppler shift the wavelength array `wave` by the radial velocity `rv` [km/s].
     Note: positive values for `rv` indicate a red-shift. Negative values 
