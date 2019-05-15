@@ -20,7 +20,7 @@ def _parse_args_fits_to_rdb():
     )
     # parser.add_argument('column', nargs=1, type=int,
     #                     help='which column to use for histogram')
-    parser.add_argument('--hdu', nargs=1, type=int, help='HDU number')
+    parser.add_argument('--hdu', type=int, help='HDU number')
     parser.add_argument('--sort', action='store_true', default=True,
                         help='sort the output by the MJD-OBS keyword')
     parser.add_argument('--bis-harps', action='store_true', default=True,
@@ -34,18 +34,25 @@ def _parse_args_fits_to_rdb():
     #                          'For example: samples=np.random.uniform(0,1,nsamples)')
 
     args = parser.parse_args()
-    return args
+    return args, parser
 
 
 def fits_to_rdb():
-    args = _parse_args_fits_to_rdb()
-    print(args)
+    args, _ = _parse_args_fits_to_rdb()
+    # print(args)
+
     bisHARPS = args.bis_harps
-    hdu_number = args.hdu[0]
-    files = [line.strip() for line in sys.stdin]
-    iCCF.indicators_from_files(
-        files,
-        hdu_number=hdu_number,
-        sort_bjd=args.sort,
-        BIS_HARPS=bisHARPS,
-    )
+    hdu_number = args.hdu
+
+    if sys.stdin.isatty():
+        print('pipe something into this script')
+        sys.exit(1)
+    else:
+        files = [line.strip() for line in sys.stdin]
+        # print(files)
+        iCCF.indicators_from_files(
+            files,
+            hdu_number=hdu_number,
+            sort_bjd=args.sort,
+            BIS_HARPS=bisHARPS,
+        )
