@@ -24,9 +24,10 @@ def rdb_names(names):
     """ Return the usual .rdb format names. """
     r = []
     for name in names:
+        # print(name)
         if name.lower() in ('rv', 'vrad', 'radvel'):
             r.append('vrad')
-        elif name.lower() in ('rve', 'svrad', 'error', 'err'):
+        elif name.lower() in ('rve', 'svrad', 'error', 'err', 'rverror'):
             r.append('svrad')
         elif name.lower() in ('fwhm'):
             r.append('fwhm')
