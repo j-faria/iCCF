@@ -35,21 +35,36 @@ def getRVarray(fitsfile, keywords=None):
         return sta + ste * np.arange(n)
 
 
-def getBJD(fitsfile, keyword=None):
+def getBJD(fitsfile, keyword=None, mjd=True):
+    """
+    Try to extract the bjd from `fitsfile`. If `keyword` is given, this function
+    returns that keyword from the header of the fits file. Otherwise, it will
+    try to search for the following typical keywords that store the bjd:
+    - HIERARCH ESO QC BJD
+    - HIERARCH ESO DRS BJD
+    - MJD-OBS
+    If `mjd` is True, the function returns *modified* julian day.
+    """
     hdul = fits.open(fitsfile)
+
     if keyword is not None:
         return hdul[0].header[keyword]
-    
+
     # need to look for it
     fail = ValueError(f'Could not find any BJD keyword in header of "{fitsfile}"')
-    
-    try: return hdul[0].header['HIERARCH ESO QC BJD'] - 24e5
-    except KeyError: pass
-    
-    try: return hdul[0].header['HIERARCH ESO DRS BJD'] - 24e5
+
+    if mjd:
+        sub = 24e5 + 0.5
+    else:
+        sub = 24e5
+
+    try: return hdul[0].header['HIERARCH ESO QC BJD'] - sub
     except KeyError: pass
 
-    try: return hdul[0].header['MJD-OBS']
+    try: return hdul[0].header['HIERARCH ESO DRS BJD'] - sub
+    except KeyError: pass
+
+    try: return hdul[0].header['MJD-OBS'] 
     except KeyError: pass
 
     raise fail
