@@ -31,7 +31,7 @@ def doppler_shift_wave(wave, rv, f=1.0):
     rv : float
         Radial velocity [in km/s]
     """
-    return wave * (1 + rv / _c)
+    return wave * f * (1 + rv / _c)
 
 
 def numerical_gradient(rv, ccf):

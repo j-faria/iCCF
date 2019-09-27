@@ -3,10 +3,14 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
+import os
 import sys
 import argparse
 
 from . import iCCF
+from . import meta_ESPRESSO
+# from .meta_ESPRESSO import calculate_ccf as calculate_ccf_ESPRESSO
+from astropy.io import fits
 
 
 def _parse_args_fits_to_rdb():
@@ -45,7 +49,7 @@ def fits_to_rdb():
     hdu_number = args.hdu
 
     if sys.stdin.isatty():
-        print('pipe something into this script')
+        print('pipe something (a list of CCF fits files) into this script')
         sys.exit(1)
     else:
         files = [line.strip() for line in sys.stdin]
@@ -56,3 +60,57 @@ def fits_to_rdb():
             sort_bjd=args.sort,
             BIS_HARPS=bisHARPS,
         )
+
+
+default_ncores = len(os.sched_getaffinity(0))
+
+
+def _parse_args_make_CCF():
+    desc = """
+    This script takes a list of S2D fits files and calculates the CCF for a 
+    given mask.
+    """
+    parser = argparse.ArgumentParser(
+        description=desc,
+        prog='iccf-make-ccf',
+    )
+    parser.add_argument('-m', '--mask', type=str, help='Mask (G2, G9, ...)')
+    parser.add_argument('-rv', required=True, type=str,
+                        help='RV array, in the form start:end:step')
+    help_ncores = 'Number of cores to distribute calculation; '\
+                  f'default is all available ({default_ncores})'
+    parser.add_argument('--ncores', type=int, help=help_ncores)
+
+    args = parser.parse_args()
+    return args, parser
+
+
+def make_CCF():
+    args, _ = _parse_args_make_CCF()
+    # print(args)
+
+    start, end, step = map(float, args.rv.split(':'))
+    rvarray = np.arange(start, end + step, step)
+
+    if sys.stdin.isatty():
+        print('pipe something (a list of S2D fits files) into this script')
+        sys.exit(1)
+    else:
+        files = [line.strip() for line in sys.stdin]
+        # print(files)
+
+        for file in files:
+            header = fits.open(file)[0].header
+
+            mask = args.mask
+            if mask is None:
+                mask = header['HIERARCH ESO QC CCF MASK']
+
+            inst = header['INSTRUME']
+
+            if inst == 'ESPRESSO':
+                meta_ESPRESSO.calculate_ccf(file, mask=mask, rvarray=rvarray,
+                                            ncores=args.ncores)
+
+            elif inst == 'HARPS':
+                print('dont know what to do with HARPS! sorry')

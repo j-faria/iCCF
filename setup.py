@@ -26,6 +26,7 @@ setup(
       entry_points={
         'console_scripts': [
             'iccf-fits-to-rdb = iCCF.scripts:fits_to_rdb',
+            'iccf-make-ccf = iCCF.scripts:make_CCF',
             ]
         },
     packages=find_packages(),
