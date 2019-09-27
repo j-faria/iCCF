@@ -365,28 +365,18 @@ def calculate_s2d_ccf_parallel(s2dfile, rvarray, order='all', maskfile='ESPRESSO
 
     dllfile = hdu[0].header['HIERARCH ESO PRO REC1 CAL7 NAME']
     blazefile = hdu[0].header['HIERARCH ESO PRO REC1 CAL13 NAME']
-    find_file(dllfile)
-    find_file(blazefile)
+    dllfile = find_file(dllfile)
+    blazefile = find_file(blazefile)
     
-    find_file(maskfile)
-    
-    # --> get them!
-    # print('downloading files...')
-    # get_file_from_server(dllfile, 'jfaria', 'exo2', download=True, verbose=False)
-    # get_file_from_server(blazefile, 'jfaria', 'exo2', download=True, verbose=False)
-
-    dllfile = glob(dllfile + '*')[0]
-
     # CCF mask
+    find_file(maskfile)
     mask = fits.open(maskfile)[1].data
-
+    
     # get the flux correction stored in the S2D file
     keyword = 'HIERARCH ESO QC ORDER%d FLUX CORR'
     flux_corr = [hdu[0].header[keyword % (o + 1)] for o in range(170)]
 
-
     kwargs = {}
-    # kwargs['hdu'] = hdu
     kwargs['data'] = [None] + [hdu[i].data for i in range(1,6)] 
     kwargs['dllfile'] = dllfile
     kwargs['blazefile'] = blazefile
