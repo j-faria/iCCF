@@ -369,7 +369,7 @@ def calculate_s2d_ccf_parallel(s2dfile, rvarray, order='all', maskfile='ESPRESSO
     blazefile = find_file(blazefile)
     
     # CCF mask
-    find_file(maskfile)
+    maskfile = find_file(maskfile)
     mask = fits.open(maskfile)[1].data
     
     # get the flux correction stored in the S2D file
