@@ -11,6 +11,8 @@ from itertools import product
 from bisect import bisect_left, bisect_right
 from glob import glob
 from scipy.interpolate import interp1d
+import tqdm
+
 
 from .utils import doppler_shift_wave
 
@@ -318,7 +320,7 @@ def dowork(args):
     BERV = kwargs['BERV']
     BERVMAX = kwargs['BERVMAX']
     mask_width = kwargs['mask_width']
-    verbose = kwargs['verbose']
+    # verbose = kwargs['verbose']
 
     # WAVEDATA_AIR_BARY
     ll = data[5][order, :]
@@ -338,8 +340,8 @@ def dowork(args):
 
     y = flux * blaze / corr_model[order]
     ye = error * blaze / corr_model[order]
-    if verbose:
-        print('calculating ccf (order %d)...' % order)
+    # if verbose:
+    #     print('calculating ccf (order %d)...' % order)
     ccf, ccfe, _ = espdr_compute_CCF_fast(ll, dll, y, ye, blaze, quality,
                                             rvarray, mask, BERV, BERVMAX,
                                             mask_width=mask_width)
@@ -386,14 +388,17 @@ def calculate_s2d_ccf_parallel(s2dfile, rvarray, order='all', maskfile='ESPRESSO
     kwargs['BERV'] = BERV
     kwargs['BERVMAX'] = BERVMAX
     kwargs['mask_width'] = mask_width
-    kwargs['verbose'] = verbose
+    # kwargs['verbose'] = verbose
 
     # return kwargs
     # print(list(product(orders, [kwargs,])))
     # return 
 
     pool = multiprocessing.Pool(ncores)
-    ccfs, ccfes = zip(*pool.map(dowork, product(orders, [kwargs,])))
+    if verbose:
+        ccfs, ccfes = zip(*tqdm.tqdm(pool.imap_unordered(dowork, product(orders, [kwargs,])), total=len(orders)))
+    else:
+        ccfs, ccfes = zip(*pool.map(dowork, product(orders, [kwargs,])))
     pool.close()
 
     if return_sum:

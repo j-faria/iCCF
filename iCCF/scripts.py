@@ -68,7 +68,8 @@ default_ncores = len(os.sched_getaffinity(0))
 def _parse_args_make_CCF():
     desc = """
     This script takes a list of S2D fits files and calculates the CCF for a 
-    given mask.
+    given RV array and a given mask. If no mask is provided, it uses the same as
+    specified in the S2D file.
     """
     parser = argparse.ArgumentParser(
         description=desc,
@@ -97,9 +98,9 @@ def make_CCF():
         sys.exit(1)
     else:
         files = [line.strip() for line in sys.stdin]
-        # print(files)
 
         for file in files:
+            print('Calculating CCF for', file)
             header = fits.open(file)[0].header
 
             mask = args.mask
