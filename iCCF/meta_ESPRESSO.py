@@ -412,6 +412,7 @@ def calculate_ccf(s2dfile, **kwargs):
     kwargs['maskfile'] = maskfile
     ccf, ccfe = calculate_s2d_ccf_parallel(s2dfile, **kwargs)
 
+    s2dfile = os.path.basename(s2dfile)
     ccf_file = s2dfile[:s2dfile.index('_')] + f'_CCF_{mask}_iCCF.fits'
     rvarray = kwargs['rvarray']
 
