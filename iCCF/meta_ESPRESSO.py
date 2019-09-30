@@ -348,7 +348,7 @@ def dowork(args):
     return ccf, ccfe
 
 
-def calculate_s2d_ccf_parallel(s2dfile, rvarray, order='all', maskfile='ESPRESSO_G2.fits', mask_width=0.5, ncores=None, verbose=True):
+def calculate_s2d_ccf_parallel(s2dfile, rvarray, order='all', maskfile='ESPRESSO_G2.fits', mask_width=0.5, ncores=None, verbose=True, full_output=False):
     hdu = fits.open(s2dfile)
 
     if ncores is None:
@@ -405,9 +405,15 @@ def calculate_s2d_ccf_parallel(s2dfile, rvarray, order='all', maskfile='ESPRESSO
         ccf = np.concatenate([ccfs, np.array(ccfs).sum(axis=0, keepdims=True)])
         ccfe = np.concatenate([ccfes, np.zeros(len(rvarray)).reshape(1, -1)])
         # what to do with the errors?
-        return ccf, ccfe
+        if full_output:
+            return ccf, ccfe, kwargs
+        else:
+            return ccf, ccfe
     else:
-        return np.array(ccfs), np.array(ccfes)
+        if full_output:
+            return np.array(ccfs), np.array(ccfes), kwargs
+        else:
+            return np.array(ccfs), np.array(ccfes)
 
 
 
@@ -415,7 +421,13 @@ def calculate_ccf(s2dfile, **kwargs):
     mask = kwargs.pop('mask')
     maskfile = f"ESPRESSO_{mask}.fits"
     kwargs['maskfile'] = maskfile
-    ccf, ccfe = calculate_s2d_ccf_parallel(s2dfile, **kwargs)
+
+    ccf, ccfe, kw = calculate_s2d_ccf_parallel(s2dfile, full_output=True, 
+                                               **kwargs)
+
+    # read original S2D file
+    s2dhdu = fits.open(s2dfile)
+
 
     s2dfile = os.path.basename(s2dfile)
     ccf_file = s2dfile[:s2dfile.index('_')] + f'_CCF_{mask}_iCCF.fits'
@@ -424,19 +436,20 @@ def calculate_ccf(s2dfile, **kwargs):
     phdr = fits.Header()
     phdr['HIERARCH ESO RV START'] = rvarray[0]
     phdr['HIERARCH ESO RV STEP'] = np.ediff1d(rvarray)[0]
+    phdr['HIERARCH ESO QC BJD'] = s2dhdu[0].header['ESO QC BJD']
+    phdr['HIERARCH ESO QC BERV'] = kw['BERV']
+    phdr['HIERARCH ESO QC BERVMAX'] = kw['BERVMAX']
+    phdr['HIERARCH ESO QC CCF MASK'] = mask
     # at least these keywords should be added
     # 'ESO PRO SCIENCE'
     # 'ESO PRO TECH'
     # 'ESO PRO TYPE'
-    # 'ESO QC BERV'
-    # 'ESO QC BERVMAX'
     # 'ESO QC BJD'
     # 'ESO QC CCF CONTRAST'
     # 'ESO QC CCF CONTRAST ERROR'
     # 'ESO QC CCF FLUX ASYMMETRY'
     # 'ESO QC CCF FWHM'
     # 'ESO QC CCF FWHM ERROR'
-    # 'ESO QC CCF MASK'
     # 'ESO QC CCF RV'
     # 'ESO QC CCF RV ERROR'
     phdu = fits.PrimaryHDU(header=phdr)
