@@ -11,7 +11,7 @@ with open(path.join(here, 'README.md'), encoding='utf-8') as f:
 
 setup(
     name='iCCF',
-    version='0.3.4',
+    version='0.3.5',
     description='Analysis of CCF profiles and activity indicators',
     long_description=long_description,
     long_description_content_type='text/markdown',
