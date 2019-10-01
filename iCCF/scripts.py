@@ -62,8 +62,6 @@ def fits_to_rdb():
         )
 
 
-default_ncores = len(os.sched_getaffinity(0))
-
 
 def _parse_args_make_CCF():
     desc = """
@@ -71,6 +69,12 @@ def _parse_args_make_CCF():
     given RV array and a given mask. If no mask is provided, it uses the same as
     specified in the S2D file.
     """
+    try:
+        default_ncores = len(os.sched_getaffinity(0))
+    except AttributeError:
+        import multiprocessing
+        default_ncores = multiprocessing.cpu_count()
+
     parser = argparse.ArgumentParser(
         description=desc,
         prog='iccf-make-ccf',
