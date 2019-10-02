@@ -1,5 +1,5 @@
 <p align="center">
-  <img width = "450" src="https://github.com/j-faria/iCCF/blob/master/logo.png?raw=true"/>
+  <img width = "450" src="https://github.com/j-faria/iCCF/blob/master/iCCF/logo/logo.png?raw=true"/>
   <!-- <br> -->
   <!-- Line profile asymmetry indicators -->
 </p>
