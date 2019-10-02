@@ -62,7 +62,6 @@ def fits_to_rdb():
         )
 
 
-
 def _parse_args_make_CCF():
     desc = """
     This script takes a list of S2D fits files and calculates the CCF for a 
@@ -79,9 +78,10 @@ def _parse_args_make_CCF():
         description=desc,
         prog='iccf-make-ccf',
     )
-    parser.add_argument('-m', '--mask', type=str, help='Mask (G2, G9, ...)')
-    parser.add_argument('-rv', required=True, type=str,
-                        help='RV array, in the form start:end:step')
+    parser.add_argument('-m', '--mask', type=str,
+                        help='Mask (G2, G9, K6, M2, ...)')
+    parser.add_argument('-rv', type=str,
+                        help='RV array, in the form start:end:step [km/s]')
     help_ncores = 'Number of cores to distribute calculation; '\
                   f'default is all available ({default_ncores})'
     parser.add_argument('--ncores', type=int, help=help_ncores)
@@ -94,9 +94,6 @@ def make_CCF():
     args, _ = _parse_args_make_CCF()
     # print(args)
 
-    start, end, step = map(float, args.rv.split(':'))
-    rvarray = np.arange(start, end + step, step)
-
     if sys.stdin.isatty():
         print('pipe something (a list of S2D fits files) into this script')
         sys.exit(1)
@@ -107,9 +104,27 @@ def make_CCF():
             print('Calculating CCF for', file)
             header = fits.open(file)[0].header
 
+            if args.rv is None:
+                try:
+                    OBJ_RV = header['HIERARCH ESO OCS OBJ RV']
+                    start = header['HIERARCH ESO RV START']
+                    step = header['HIERARCH ESO RV STEP']
+                    end = OBJ_RV + (OBJ_RV - start)
+                    print('using RV array from S2D file:',
+                          f'{start} : {end} : {step} km/s')
+                    rvarray = np.arange(start, end + step, step)
+                except KeyError:
+                    print('Could not find RV start and step in S2D file.',
+                          'Please use the -rv argument.')
+                    sys.exit(1)
+            else:
+                start, end, step = map(float, args.rv.split(':'))
+                rvarray = np.arange(start, end + step, step)
+
             mask = args.mask
             if mask is None:
                 mask = header['HIERARCH ESO QC CCF MASK']
+                print('using mask from S2D file:', mask)
 
             inst = header['INSTRUME']
 
