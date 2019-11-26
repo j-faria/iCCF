@@ -9,6 +9,7 @@ import argparse
 
 from . import iCCF
 from . import meta_ESPRESSO
+from .utils import get_ncores
 # from .meta_ESPRESSO import calculate_ccf as calculate_ccf_ESPRESSO
 from astropy.io import fits
 
@@ -54,12 +55,8 @@ def fits_to_rdb():
     else:
         files = [line.strip() for line in sys.stdin]
         # print(files)
-        iCCF.indicators_from_files(
-            files,
-            hdu_number=hdu_number,
-            sort_bjd=args.sort,
-            BIS_HARPS=bisHARPS,
-        )
+        iCCF.indicators_from_files(files, hdu_number=hdu_number,
+                                   sort_bjd=args.sort, BIS_HARPS=bisHARPS)
 
 
 def _parse_args_make_CCF():
@@ -68,20 +65,15 @@ def _parse_args_make_CCF():
     given RV array and a given mask. If no mask is provided, it uses the same as
     specified in the S2D file.
     """
-    try:
-        default_ncores = len(os.sched_getaffinity(0))
-    except AttributeError:
-        import multiprocessing
-        default_ncores = multiprocessing.cpu_count()
-
-    parser = argparse.ArgumentParser(
-        description=desc,
-        prog='iccf-make-ccf',
-    )
+    parser = argparse.ArgumentParser(description=desc, prog='iccf-make-ccf')
+    
     parser.add_argument('-m', '--mask', type=str,
                         help='Mask (G2, G9, K6, M2, ...)')
+    
     parser.add_argument('-rv', type=str,
                         help='RV array, in the form start:end:step [km/s]')
+    
+    default_ncores = get_ncores()
     help_ncores = 'Number of cores to distribute calculation; '\
                   f'default is all available ({default_ncores})'
     parser.add_argument('--ncores', type=int, help=help_ncores)

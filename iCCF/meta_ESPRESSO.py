@@ -13,9 +13,7 @@ from glob import glob
 from scipy.interpolate import interp1d
 import tqdm
 
-
-from .utils import doppler_shift_wave
-
+from .utils import doppler_shift_wave, get_ncores
 
 
 def makeCCF(spec_wave, spec_flux, mask_wave=None, mask_contrast=None,
@@ -215,9 +213,10 @@ def find_dll(s2dfile):
         return glob(dllfile + '*')[0]
     else:
         date = hdu[0].header['DATE-OBS']
-        
 
-def calculate_s2d_ccf(s2dfile, rvarray, order='all', maskfile='ESPRESSO_G2.fits', mask=None, mask_width=0.5):
+
+def calculate_s2d_ccf(s2dfile, rvarray, order='all',
+                      maskfile='ESPRESSO_G2.fits', mask=None, mask_width=0.5):
 
     hdu = fits.open(s2dfile)
 
@@ -348,11 +347,13 @@ def dowork(args):
     return ccf, ccfe
 
 
-def calculate_s2d_ccf_parallel(s2dfile, rvarray, order='all', maskfile='ESPRESSO_G2.fits', mask_width=0.5, ncores=None, verbose=True, full_output=False):
+def calculate_s2d_ccf_parallel(s2dfile, rvarray, order='all',
+                               maskfile='ESPRESSO_G2.fits', mask_width=0.5,
+                               ncores=None, verbose=True, full_output=False):
     hdu = fits.open(s2dfile)
 
     if ncores is None:
-        ncores = len(os.sched_getaffinity(0))
+        ncores = get_ncores()
 
     if order == 'all':
         orders = range(hdu[1].data.shape[0])
@@ -369,17 +370,17 @@ def calculate_s2d_ccf_parallel(s2dfile, rvarray, order='all', maskfile='ESPRESSO
     blazefile = hdu[0].header['HIERARCH ESO PRO REC1 CAL13 NAME']
     dllfile = find_file(dllfile)
     blazefile = find_file(blazefile)
-    
+
     # CCF mask
     maskfile = find_file(maskfile)
     mask = fits.open(maskfile)[1].data
-    
+
     # get the flux correction stored in the S2D file
     keyword = 'HIERARCH ESO QC ORDER%d FLUX CORR'
     flux_corr = [hdu[0].header[keyword % (o + 1)] for o in range(170)]
 
     kwargs = {}
-    kwargs['data'] = [None] + [hdu[i].data for i in range(1,6)] 
+    kwargs['data'] = [None] + [hdu[i].data for i in range(1,6)]
     kwargs['dllfile'] = dllfile
     kwargs['blazefile'] = blazefile
     kwargs['flux_corr'] = flux_corr
@@ -392,7 +393,7 @@ def calculate_s2d_ccf_parallel(s2dfile, rvarray, order='all', maskfile='ESPRESSO
 
     # return kwargs
     # print(list(product(orders, [kwargs,])))
-    # return 
+    # return
 
     pool = multiprocessing.Pool(ncores)
     if verbose:
@@ -416,13 +417,12 @@ def calculate_s2d_ccf_parallel(s2dfile, rvarray, order='all', maskfile='ESPRESSO
             return np.array(ccfs), np.array(ccfes)
 
 
-
 def calculate_ccf(s2dfile, **kwargs):
     mask = kwargs.pop('mask')
     maskfile = f"ESPRESSO_{mask}.fits"
     kwargs['maskfile'] = maskfile
 
-    ccf, ccfe, kw = calculate_s2d_ccf_parallel(s2dfile, full_output=True, 
+    ccf, ccfe, kw = calculate_s2d_ccf_parallel(s2dfile, full_output=True,
                                                **kwargs)
 
     # read original S2D file

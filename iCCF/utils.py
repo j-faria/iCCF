@@ -4,6 +4,14 @@ import numpy as np
 
 _c = 299792.458
 
+def get_ncores():
+    try:
+        ncores = len(os.sched_getaffinity(0))
+    except AttributeError:
+        import multiprocessing
+        ncores = multiprocessing.cpu_count()
+    return ncores
+
 
 # from https://stackoverflow.com/a/30141358/1352183
 def running_mean(x, N=2):
