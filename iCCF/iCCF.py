@@ -3,6 +3,7 @@ from collections import Iterable
 import numpy as np
 import matplotlib.pyplot as plt
 from os.path import basename
+from glob import glob
 import math
 import warnings
 from astropy.io import fits
@@ -79,45 +80,68 @@ class Indicators:
             r = f'CCFindicators(CCF from {basename(self.filename)})'
         return r
 
+    def __len__(self):
+        return 1
+
+
     @classmethod
-    def from_file(cls, filename, hdu_number=0, data_index=-1, **kwargs):
+    def from_file(cls, file, hdu_number=1, data_index=-1, sort_bjd=True,
+                  **kwargs):
         """ 
         Create an `Indicators` object from one or more fits files.
         
         Parameters
         ----------
-        filename : str or list of str
+        file : str or list of str
             The name(s) of the fits file(s)
-        hdu_number : int, default = 0
+        hdu_number : int, default = 1
             The index of the HDU list which contains the CCF
         data_index : int, default = -1
             The index of the .data array which contains the CCF. The data will 
             be accessed as ccf = HDU[hdu_number].data[data_index,:]
+        sort_bjd : bool
+            If True (default) and filename is a list of files, sort them by BJD
+            before reading
         """
-        if isinstance(filename, Iterable) and not isinstance(filename, str):
-            # list of files
-            N = len(filename)
-            rv, ccf = [], []
-            for i in range(N):
-                f = filename[i]
-                rv.append(getRVarray(f))
-                hdul = fits.open(f)
-                ccf.append(hdul[hdu_number].data[data_index, :])
 
-        if isinstance(filename, str):
+        if '*' in file or '?' in file:
+            file = glob(file)
+
+        # list of files
+        if isinstance(file, Iterable) and not isinstance(file, str): 
+            if sort_bjd:
+                file = sorted(file, key=getBJD)
+            return [cls.from_file(f) for f in file]
+
+            # N = len(file)
+            # rv, ccf = [], []
+            # for i in range(N):
+            #     f = file[i]
+            #     rv.append(getRVarray(f))
+            #     hdul = fits.open(f)
+            #     ccf.append(hdul[hdu_number].data[data_index, :])
+        
+        # just one file
+        elif isinstance(file, str):
             # one file only
-            rv = getRVarray(filename)
-            hdul = fits.open(filename)
+            rv = getRVarray(file)
+            hdul = fits.open(file)
             ccf = hdul[hdu_number].data[data_index, :]
+        
+            I = cls(rv, ccf, **kwargs)
+            I.filename = file
+            I.HDU = hdul
+            return I
+
         else:
             raise ValueError(
                 'Input to `from_file` should be a string or list of strings.')
 
-        I = cls(rv, ccf, **kwargs)
-        I.filename = filename
-        I.HDU = hdul
 
-        return I
+    @cached_property
+    def bjd(self):
+        return getBJD(self.filename, mjd=False)
+
 
     @cached_property
     def RV(self):
