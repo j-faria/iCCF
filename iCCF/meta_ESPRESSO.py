@@ -473,3 +473,5 @@ def calculate_ccf(s2dfile, **kwargs):
     hdul = fits.HDUList([phdu, hdu1, hdu2])
     print('Output to:', ccf_file)
     hdul.writeto(ccf_file, overwrite=True, checksum=True)
+
+    return ccf_file
