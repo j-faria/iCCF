@@ -43,21 +43,23 @@ def rdb_names(names):
 
 class Indicators:
     """ Class to hold CCF indicators """
-    def __init__(self, rv, ccf, RV_on=True, FWHM_on=True, BIS_on=True,
-                 Vspan_on=True, Wspan_on=True, contrast_on=True,
+    def __init__(self, rv, ccf, eccf=None, RV_on=True, FWHM_on=True,
+                 BIS_on=True, Vspan_on=True, Wspan_on=True, contrast_on=True,
                  BIS_HARPS=False):
         """
-        The default constructor takes `rv` and `ccf` arrays as input, see
+        The default constructor takes `rv` and `ccf` arrays as input. See
         `Indicators.from_file` for another way to create the object from a CCF
-        fits file. Keyword parameters turn specific indicators on or off.
-        Is `BIS_HARPS` is True, the BIS is calculated using the same routine as
-        in the HARPS pipeline.
+        fits file. The CCF uncertainties can be provided as the `eccf` array.
+        Keyword parameters turn specific indicators on or off. Is `BIS_HARPS` 
+        is True, the BIS is calculated using the same routine as in the HARPS 
+        pipeline.
         """
         self.rv = rv
         self.ccf = ccf
+        self.eccf = eccf
         self.filename = None
         self.on_indicators = []
-        if RV_on: 
+        if RV_on:
             self.on_indicators.append('RV')
             self.on_indicators.append('RVerror')
         if FWHM_on: self.on_indicators.append('FWHM')
@@ -108,7 +110,7 @@ class Indicators:
             file = glob(file)
 
         # list of files
-        if isinstance(file, Iterable) and not isinstance(file, str): 
+        if isinstance(file, Iterable) and not isinstance(file, str):
             if sort_bjd:
                 file = sorted(file, key=getBJD)
             return [cls.from_file(f) for f in file]
@@ -120,14 +122,14 @@ class Indicators:
             #     rv.append(getRVarray(f))
             #     hdul = fits.open(f)
             #     ccf.append(hdul[hdu_number].data[data_index, :])
-        
+
         # just one file
         elif isinstance(file, str):
             # one file only
             rv = getRVarray(file)
             hdul = fits.open(file)
             ccf = hdul[hdu_number].data[data_index, :]
-        
+
             I = cls(rv, ccf, **kwargs)
             I.filename = file
             I.HDU = hdul
@@ -149,14 +151,19 @@ class Indicators:
 
     @cached_property
     def RVerror(self):
-        try:
-            eccf = self.HDU[2].data[-1,:] # for ESPRESSO
-        except Exception as e:
-            warnings.warn(e)
-            warnings.warn('Cannot access CCF uncertainties, using 1.0.')
-            eccf = np.ones_like(self.rv)
-        finally:
-            return RVerror(self.rv, self.ccf, eccf)
+        if self.eccf is not None: # CCF uncertainties were provided
+            if self.eccf.size != self.ccf.size:
+                raise ValueError('CCF and CCF errors not of the same size')
+            eccf = self.eccf
+        else: # try reading it from the HDU
+            try:
+                eccf = self.HDU[2].data[-1,:] # for ESPRESSO
+            except Exception as e:
+                warnings.warn(e)
+                warnings.warn('Cannot access CCF uncertainties, using 1.0.')
+                eccf = np.ones_like(self.rv)
+        
+        return RVerror(self.rv, self.ccf, eccf)
 
 
     @cached_property
@@ -188,7 +195,7 @@ class Indicators:
 
     def to_dict(self):
         return writers.to_dict(self)
-    
+
     def to_rdb(self, filename='stdout', clobber=False):
         return writers.to_rdb(self, filename, clobber)
 
