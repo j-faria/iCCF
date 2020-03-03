@@ -9,9 +9,16 @@ here = path.abspath(path.dirname(__file__))
 with open(path.join(here, 'README.md'), encoding='utf-8') as f:
     long_description = f.read()
 
+# Get the version from iCCF/version.py
+version = {}
+with open("iCCF/version.py") as fp:
+    exec(fp.read(), version)
+    __version__ = version['__version__']
+
+
 setup(
     name='iCCF',
-    version='0.3.5',
+    version=__version__,
     description='Analysis of CCF profiles and activity indicators',
     long_description=long_description,
     long_description_content_type='text/markdown',
