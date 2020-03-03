@@ -1,5 +1,6 @@
 import os
 import bisect
+import warnings
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -8,7 +9,7 @@ from astropy.io import fits
 from cached_property import cached_property
 
 from .iCCF import Indicators
-from .gaussian import gaussfit, RV
+from .gaussian import gaussfit, RV, RVerror
 from .keywords import getRV, getRVarray
 from .utils import find_myself
 # from .utils import get_orders_mean_wavelength
@@ -52,14 +53,18 @@ class chromaticRV():
         self.red_wave_limits = (730, 790)
 
         self._slice_policy = 0  # by default use both slices
-        
+
         self.blue_orders = self._find_orders(self.blue_wave_limits)
         self.mid_orders = self._find_orders(self.mid_wave_limits)
         self.red_orders = self._find_orders(self.red_wave_limits)
-        
+
         self._blueRV = None
         self._midRV = None
         self._redRV = None
+
+        self._blueRVerror = None
+        self._midRVerror = None
+        self._redRVerror = None
 
         self.n = len(indicators)
         if self.n == 1:
@@ -67,6 +72,12 @@ class chromaticRV():
         self.I = self.indicators = indicators
         # store all but the last CCF for each of the Indicators instances
         self.ccfs = [i.HDU[1].data[:-1] for i in self.I]
+        # try storing the CCF uncertainties as well
+        try:
+            self.eccfs = [i.HDU[2].data[:-1] for i in self.I]
+        except IndexError:
+            self.eccfs = self.n * [None]
+
 
     def __repr__(self):
         bands = ', '.join(map(repr, self.bands))
@@ -81,7 +92,7 @@ class chromaticRV():
         2: use only the second slice
         """
         return self._slice_policy
-    
+
     @slice_policy.setter
     def slice_policy(self, val):
         self._slice_policy = val
@@ -96,7 +107,7 @@ class chromaticRV():
     def _find_orders(self, wave_limits):
         order_start = bisect.bisect(self.wave_starts, wave_limits[0])
         order_end = bisect.bisect(self.wave_ends, wave_limits[1])
-        
+
         order_start = order_start * 2
         order_end = order_end * 2 + 1
 
@@ -114,7 +125,7 @@ class chromaticRV():
 
 
     def get_rv(self, orders):
-        """ Get radial velocity for specific orders
+        """ Get radial velocity and uncertainty for specific orders
 
         orders : int, slice, tuple, array
             The CCFs of these orders will be summed to calculate the RV.
@@ -130,10 +141,23 @@ class chromaticRV():
             orders = slice(*orders)
 
         rv = []
-        for i in self.I:
-            ccf = i.HDU[1].data[orders].sum(axis=0)
+        rve = []
+        has_errors = False
+        for i, full_ccf, full_eccf in zip(self.I, self.ccfs, self.eccfs):
+            ccf = full_ccf[orders].sum(axis=0)
             rv.append(RV(i.rv, ccf))
-        return np.array(rv)
+
+            if full_eccf is not None:
+                eccf = np.sqrt(np.square(full_eccf[orders]).sum(axis=0))
+                rve.append(RVerror(i.rv, ccf, eccf))
+                has_errors = True
+
+        if not has_errors:
+            warnings.warn(
+                'Cannot access CCF uncertainties to calculate RV error')
+            return np.array(rv), None
+        else:
+            return np.array(rv), np.array(rve)
 
 
     @property
@@ -145,26 +169,45 @@ class chromaticRV():
     @cached_property
     def time(self):
         """ BJD of observations """
-        return np.fromiter((i.bjd for i in self.I), dtype=np.float,
-                           count=self.n)
+        return np.fromiter((i.bjd for i in self.I), np.float, self.n)
 
     @property
     def blueRV(self):
         if self._blueRV is None:
-            self._blueRV = self.get_rv(self.blue_orders)
+            self._blueRV, self._blueRVerror = self.get_rv(self.blue_orders)
         return self._blueRV
 
     @property
     def midRV(self):
         if self._midRV is None:
-            self._midRV = self.get_rv(self.mid_orders)
+            self._midRV, self._midRVerror = self.get_rv(self.mid_orders)
         return self._midRV
 
     @property
     def redRV(self):
         if self._redRV is None:
-            self._redRV = self.get_rv(self.red_orders)
+            self._redRV, self._redRVerror = self.get_rv(self.red_orders)
         return self._redRV
+
+    @property
+    def fullRV(self):
+        return np.fromiter((i.RV for i in self.I), np.float, self.n)
+    
+    @property
+    def fullRVerror(self):
+        return np.fromiter((i.RVerror for i in self.I), np.float, self.n)
+
+    def plot(self):
+        _, axs = plt.subplots(3+1, 1, sharex=True, sharey=False)
+
+        axs[0].errorbar(self.time, self.fullRV, self.fullRVerror, fmt='o')
+
+        axs[1].errorbar(self.time, self.blueRV, self._blueRVerror, fmt='o')
+        axs[2].errorbar(self.time, self.midRV, self._midRVerror, fmt='o')
+        axs[3].errorbar(self.time, self.redRV, self._redRVerror, fmt='o')
+
+        plt.show()
+        
 
     def plot_ccfs(self, orders=None):
         if orders is None:
@@ -173,7 +216,7 @@ class chromaticRV():
             orders = slice(orders, orders + 1)
         elif isinstance(orders, tuple):
             orders = slice(*orders)
-        
+
         for i in self.I:
             fig, ax = plt.subplots(1, 1, constrained_layout=True)
             ax.plot(i.ccf[orders].T)
