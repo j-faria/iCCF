@@ -1,5 +1,7 @@
 """ iCCF """
 
+from .version import __version__
+
 from .bisector import BIS, BISplus, BISminus, BIS_HARPS
 from .gaussian import gauss, gaussfit, RV, FWHM, contrast
 from .bigaussian import bigauss, bigaussfit
