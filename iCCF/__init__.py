@@ -13,3 +13,4 @@ from . import utils
 
 from .iCCF import EPS, nEPS
 from .iCCF import Indicators, indicators_from_files
+from_file = Indicators.from_file

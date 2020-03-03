@@ -76,10 +76,9 @@ class chromaticRV():
     @property
     def slice_policy(self):
         """ How to deal with the two order slices.
-        0: use both slices by adding the corresponding CCFs
+        0: use both slices by adding the corresponding CCFs (default)
         1: use only the first slice
         2: use only the second slice
-        Default is 0.
         """
         return self._slice_policy
     
