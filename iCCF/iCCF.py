@@ -13,8 +13,10 @@ from .gaussian import gauss, gaussfit, FWHM as FWHMcalc, RV, RVerror, contrast
 from .bisector import BIS, BIS_HARPS as BIS_HARPS_calc, bisector
 from .vspan import vspan
 from .wspan import wspan
-from .keywords import getRVarray, getBJD
+from .keywords import getRVarray, getBJD, getRV, getFWHM
 from . import writers
+from .ssh_files import ssh_fits_open
+from .utils import no_stack_warning
 
 
 EPS = 1e-5 # all indicators are accurate up to this epsilon
@@ -111,9 +113,16 @@ class Indicators:
 
         # list of files
         if isinstance(file, Iterable) and not isinstance(file, str):
+            #! it's faster to do this after
+            # if sort_bjd:
+            #     file = sorted(file, key=getBJD)
+
+            indicators = [cls.from_file(f) for f in file]
+
             if sort_bjd:
-                file = sorted(file, key=getBJD)
-            return [cls.from_file(f) for f in file]
+                return sorted(indicators, key=lambda i: i.bjd)
+            else:
+                return indicators
 
             # N = len(file)
             # rv, ccf = [], []
@@ -125,14 +134,17 @@ class Indicators:
 
         # just one file
         elif isinstance(file, str):
-            # one file only
-            rv = getRVarray(file)
-            hdul = fits.open(file)
+            user, host = kwargs.pop('USER', None), kwargs.pop('HOST', None)
+            rv, hdul = getRVarray(file, return_hdul=True, USER=user, HOST=host)
             ccf = hdul[hdu_number].data[data_index, :]
-
             I = cls(rv, ccf, **kwargs)
+
+            # save attributes
             I.filename = file
             I.HDU = hdul
+            I._hdu_number = hdu_number
+            I._data_index = data_index
+
             return I
 
         else:
@@ -142,14 +154,15 @@ class Indicators:
 
     @cached_property
     def bjd(self):
-        return getBJD(self.filename, mjd=False)
+        return getBJD(self.filename, hdul=self.HDU, mjd=False)
 
 
-    @cached_property
+    @property
     def RV(self):
+        """ The measured radial-velocity, from a Gaussian fit to the CCF """
         return RV(self.rv, self.ccf)
 
-    @cached_property
+    @property
     def RVerror(self):
         if self.eccf is not None: # CCF uncertainties were provided
             if self.eccf.size != self.ccf.size:
@@ -162,11 +175,26 @@ class Indicators:
                 warnings.warn(e)
                 warnings.warn('Cannot access CCF uncertainties, using 1.0.')
                 eccf = np.ones_like(self.rv)
-        
+
         return RVerror(self.rv, self.ccf, eccf)
 
+    @property
+    def individual_RV(self):
+        """ Individual radial velocities calculated for each order """
+        if not hasattr(self, 'HDU'):
+            raise ValueError(
+                'Cannot access individual CCFs (no HDU attribute)')
 
-    @cached_property
+        RVs = []
+        for ccf in self.HDU[self._hdu_number].data[:-1]:
+            if np.nonzero(ccf)[0].size == 0:
+                RVs.append(np.nan)
+            else:
+                RVs.append(RV(self.rv, ccf))
+
+        return np.array(RVs)
+
+    @property
     def FWHM(self):
         return FWHMcalc(self.rv, self.ccf)
 
@@ -193,6 +221,34 @@ class Indicators:
     def all(self):
         return tuple(self.__getattribute__(i) for i in self.on_indicators)
 
+    @property
+    def pipeline_RV(self):
+        if not hasattr(self, 'HDU'):
+            raise ValueError('Cannot access header (no HDU attribute)')
+
+        return getRV(None, hdul=self.HDU)
+
+    @property
+    def pipeline_FWHM(self):
+        if not hasattr(self, 'HDU'):
+            raise ValueError('Cannot access header (no HDU attribute)')
+
+        return getFWHM(None, hdul=self.HDU)
+
+    def do_checks(self):
+        """ Check if calculated RV and FWHM match the pipeline values """
+
+        val1, val2 = self.RV, self.pipeline_RV
+        print('comparing RV calculated/pipeline')
+        np.testing.assert_almost_equal(val1, val2, self._nEPS, err_msg='')
+
+        val1, val2 = self.FWHM, self.pipeline_FWHM
+        print('comparing FWHM calculated/pipeline')
+        no_stack_warning('As of now, FWHM is only compared to 2 decimal places')
+        np.testing.assert_almost_equal(val1, val2, 2, err_msg='')
+
+        print('all checks passed!')
+
     def to_dict(self):
         return writers.to_dict(self)
 
@@ -200,9 +256,16 @@ class Indicators:
         return writers.to_rdb(self, filename, clobber)
 
 
-    def plot(self, show_bisector=False):
+    def plot(self, show_fit=True, show_bisector=False):
         fig, ax = plt.subplots(constrained_layout=True)
+
         ax.plot(self.rv, self.ccf, 's-', ms=3)
+
+        if show_fit:
+            vv = np.linspace(self.rv.min(), self.rv.max(), 1000)
+            pfit = gaussfit(self.rv, self.ccf)
+            ax.plot(vv, gauss(vv, pfit), 'k', label='Gaussian fit')
+
         if show_bisector:
             out = BIS(self.rv, self.ccf, full_output=True)
             # BIS, c, bot, ran, \
