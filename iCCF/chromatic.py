@@ -48,15 +48,15 @@ class chromaticRV():
         self.wave_starts = [v[0] for v in self.order_wave_range.values()]
         self.wave_ends = [v[1] for v in self.order_wave_range.values()]
 
-        self.blue_wave_limits = (440, 570)
-        self.mid_wave_limits = (570, 690)
-        self.red_wave_limits = (730, 790)
+        self._blue_wave_limits = (440, 570)
+        self._mid_wave_limits = (570, 690)
+        self._red_wave_limits = (730, 790)
 
         self._slice_policy = 0  # by default use both slices
 
-        self.blue_orders = self._find_orders(self.blue_wave_limits)
-        self.mid_orders = self._find_orders(self.mid_wave_limits)
-        self.red_orders = self._find_orders(self.red_wave_limits)
+        self.blue_orders = self._find_orders(self._blue_wave_limits)
+        self.mid_orders = self._find_orders(self._mid_wave_limits)
+        self.red_orders = self._find_orders(self._red_wave_limits)
 
         self._blueRV = None
         self._midRV = None
@@ -68,7 +68,7 @@ class chromaticRV():
 
         self.n = len(indicators)
         if self.n == 1:
-            indicators = [indicators,]
+            indicators = [indicators, ]
         self.I = self.indicators = indicators
         # store all but the last CCF for each of the Indicators instances
         self.ccfs = [i.HDU[1].data[:-1] for i in self.I]
@@ -85,6 +85,42 @@ class chromaticRV():
         return f'chromaticRV({self.n} CCFs; {nb} bands: {bands} nm)'
 
     @property
+    def blue_wave_limits(self):
+        """ Wavelength limits for the blue RV calculations [nm] """
+        return self._blue_wave_limits
+
+    @blue_wave_limits.setter
+    def blue_wave_limits(self, vals):
+        assert len(vals) == 2, 'provide two wavelengths (start and end) in nm'
+        self.blue_orders = self._find_orders(vals)
+        self._blue_wave_limits = vals
+        self._blueRV, self._midRV, self._redRV = None, None, None
+
+    @property
+    def mid_wave_limits(self):
+        """ Wavelength limits for the mid RV calculations [nm] """
+        return self._mid_wave_limits
+
+    @mid_wave_limits.setter
+    def mid_wave_limits(self, vals):
+        assert len(vals) == 2, 'provide two wavelengths (start and end) in nm'
+        self.mid_orders = self._find_orders(vals)
+        self._mid_wave_limits = vals
+        self._blueRV, self._midRV, self._redRV = None, None, None
+
+    @property
+    def red_wave_limits(self):
+        """ Wavelength limits for the red RV calculations [nm] """
+        return self._red_wave_limits
+
+    @red_wave_limits.setter
+    def red_wave_limits(self, vals):
+        assert len(vals) == 2, 'provide two wavelengths (start and end) in nm'
+        self.red_orders = self._find_orders(vals)
+        self._red_wave_limits = vals
+        self._blueRV, self._midRV, self._redRV = None, None, None
+
+    @property
     def slice_policy(self):
         """ How to deal with the two order slices.
         0: use both slices by adding the corresponding CCFs (default)
@@ -96,12 +132,10 @@ class chromaticRV():
     @slice_policy.setter
     def slice_policy(self, val):
         self._slice_policy = val
-        self.blue_orders = self._find_orders(self.blue_wave_limits)
-        self.mid_orders = self._find_orders(self.mid_wave_limits)
-        self.red_orders = self._find_orders(self.red_wave_limits)
-        self._blueRV = None
-        self._midRV = None
-        self._redRV = None
+        self.blue_orders = self._find_orders(self._blue_wave_limits)
+        self.mid_orders = self._find_orders(self._mid_wave_limits)
+        self.red_orders = self._find_orders(self._red_wave_limits)
+        self._blueRV, self._midRV, self._redRV = None, None, None
 
 
     def _find_orders(self, wave_limits):
