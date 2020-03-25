@@ -1,8 +1,19 @@
 import os
 import re
+import warnings
+from copy import copy
 import numpy as np
 
 _c = 299792.458
+
+def no_stack_warning(message):
+    old_show = copy(warnings.showwarning)
+    def new_show(message, category, filename, lineno, file, line):
+        print(category.__name__ + ':', message)
+    warnings.showwarning = new_show
+    warnings.warn(message)
+    warnings.showwarning = old_show
+
 
 def get_ncores():
     try:
