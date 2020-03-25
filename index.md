@@ -22,7 +22,7 @@ Plus other utility functions to work with CCFs.
 <!-- {: .fs-5 .fw-300 } -->
 
 [I'm sold, let's use it](#install){: .btn .btn-primary .fs-5 .mb-4 .mb-md-0 .mr-2 }
-[View it on GitHub](https://github.com/j-faria/iCCF){: .btn .fs-5 }
+[GitHub repository](https://github.com/j-faria/iCCF){: .btn .fs-5 }
 
 ---
 
@@ -66,7 +66,7 @@ rv, ccf = iCCF.utils.load_example_data()
 This is a CCF calculated from a HARPS spectrum.
 It looks like this
 
-[![img](example_ccf.png)]()
+![img](example_ccf.png)
 
 
 We can now load the arrays into an `Indicators` class
