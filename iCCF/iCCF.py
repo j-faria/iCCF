@@ -235,26 +235,27 @@ class Indicators:
 
         return getFWHM(None, hdul=self.HDU)
 
-    def do_checks(self):
+    def check(self, verbose=False):
         """ Check if calculated RV and FWHM match the pipeline values """
-
         val1, val2 = self.RV, self.pipeline_RV
-        print('comparing RV calculated/pipeline')
+        if verbose:
+            print('comparing RV calculated/pipeline')
         np.testing.assert_almost_equal(val1, val2, self._nEPS, err_msg='')
 
         val1, val2 = self.FWHM, self.pipeline_FWHM
-        print('comparing FWHM calculated/pipeline')
-        no_stack_warning('As of now, FWHM is only compared to 2 decimal places')
+        if verbose:
+            print('comparing FWHM calculated/pipeline')
+            no_stack_warning(
+                'As of now, FWHM is only compared to 2 decimal places')
         np.testing.assert_almost_equal(val1, val2, 2, err_msg='')
 
-        print('all checks passed!')
+        return True  # all checks passed!
 
     def to_dict(self):
         return writers.to_dict(self)
 
     def to_rdb(self, filename='stdout', clobber=False):
         return writers.to_rdb(self, filename, clobber)
-
 
     def plot(self, show_fit=True, show_bisector=False):
         fig, ax = plt.subplots(constrained_layout=True)
