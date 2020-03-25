@@ -154,16 +154,18 @@ class Indicators:
 
     @cached_property
     def bjd(self):
+        """ Barycentric Julian Day when the observation was made """
         return getBJD(self.filename, hdul=self.HDU, mjd=False)
 
 
     @property
     def RV(self):
-        """ The measured radial-velocity, from a Gaussian fit to the CCF """
+        """ The measured radial velocity, from a Gaussian fit to the CCF """
         return RV(self.rv, self.ccf)
 
     @property
     def RVerror(self):
+        """ Photon-noise uncertainty on the measured radial velocity """
         if self.eccf is not None: # CCF uncertainties were provided
             if self.eccf.size != self.ccf.size:
                 raise ValueError('CCF and CCF errors not of the same size')
@@ -180,7 +182,7 @@ class Indicators:
 
     @property
     def individual_RV(self):
-        """ Individual radial velocities calculated for each order """
+        """ Individual radial velocities calculated for each spectral order """
         if not hasattr(self, 'HDU'):
             raise ValueError(
                 'Cannot access individual CCFs (no HDU attribute)')
@@ -196,10 +198,12 @@ class Indicators:
 
     @property
     def FWHM(self):
+        """ The full width at half maximum of the CCF """
         return FWHMcalc(self.rv, self.ccf)
 
     @cached_property
     def BIS(self):
+        """ Bisector inverse slope """
         if self._use_bis_from_HARPS:
             return BIS_HARPS_calc(self.rv, self.ccf)
         else:
@@ -215,14 +219,20 @@ class Indicators:
 
     @cached_property
     def contrast(self):
+        """ The contrast (depth) of the CCF, measured in percentage """
         return contrast(self.rv, self.ccf)
 
     @property
     def all(self):
+        """ All the indicators that are on """
         return tuple(self.__getattribute__(i) for i in self.on_indicators)
 
     @property
     def pipeline_RV(self):
+        """ 
+        The radial velocity as derived by the pipeline and stored in CCF fits 
+        file
+        """
         if not hasattr(self, 'HDU'):
             raise ValueError('Cannot access header (no HDU attribute)')
 
@@ -230,6 +240,9 @@ class Indicators:
 
     @property
     def pipeline_FWHM(self):
+        """ 
+        The FWHM as derived by the pipeline and stored in CCF fits file
+        """
         if not hasattr(self, 'HDU'):
             raise ValueError('Cannot access header (no HDU attribute)')
 
@@ -258,6 +271,7 @@ class Indicators:
         return writers.to_rdb(self, filename, clobber)
 
     def plot(self, show_fit=True, show_bisector=False):
+        """ Plot the CCF, together with the Gaussian fit and the bisector """
         fig, ax = plt.subplots(constrained_layout=True)
 
         ax.plot(self.rv, self.ccf, 's-', ms=3)

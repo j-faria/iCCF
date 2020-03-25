@@ -5,6 +5,19 @@ from astropy.io import fits
 from .config import get_config, get_config_file
 
 def get_user_host_msg(USER=None, HOST=None):
+    """
+    Try to get USER and HOST from the user's configuration file. If not found,
+    print a message letting them know they can save them.
+
+    Arguments
+    ---------
+    USER: str (optional)
+        The username for the SSH connection. Takes precededence over the value
+        in the user's configuration
+    HOST: str (optional)
+        The host for the SSH connection. Takes precededence over the value in
+        the user's configuration
+    """
     config = get_config()
     USER = USER or config.get('USER')
     HOST = HOST or config.get('HOST')
@@ -16,7 +29,19 @@ def get_user_host_msg(USER=None, HOST=None):
 
 
 def ssh_fits_open(filename, USER=None, HOST=None, verbose=True):
-    """ A wrapper around fits.open to load remote files in USER@HOST """
+    """
+    A wrapper around fits.open to load remote files in USER@HOST, using SSH
+    and SFTP clients.
+
+    Arguments
+    ---------
+    USER: str (optional)
+        The username for the SSH connection
+    HOST: str (optional)
+        The host for the SSH connection
+    verbose: bool (optional, default True)
+        Whether to be verbose about the connection
+    """
     if USER is None or HOST is None:
         USER, HOST = get_user_host_msg(USER, HOST)
     
