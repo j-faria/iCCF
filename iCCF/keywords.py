@@ -1,24 +1,47 @@
 import numpy as np
 from astropy.io import fits
 
-def getRV(fitsfile, keyword=None):
-    hdul = fits.open(fitsfile)
+from .ssh_files import ssh_fits_open
+
+def _get_hdul(fitsfile, **kwargs):
+    if fitsfile.startswith('ssh:'):
+        hdul = ssh_fits_open(fitsfile[4:], **kwargs)
+    else:
+        hdul = fits.open(fitsfile)#, lazy_load_hdus=False)
+    return hdul
+
+
+def getRV(fitsfile, hdul=None, keyword=None, return_hdul=False, **kwargs):
+    if hdul is None:
+        hdul = _get_hdul(fitsfile, **kwargs)
+
     if keyword is not None:
         return hdul[0].header[keyword]
-    
+
     # need to look for it
     fail = ValueError(f'Could not find any RV keyword in header of "{fitsfile}"')
-    
-    try: return hdul[0].header['HIERARCH ESO QC CCF RV']
-    except KeyError: pass
-    
-    try: return hdul[0].header['HIERARCH ESO DRS CCF RVC']
-    except KeyError: pass
+
+    if return_hdul:
+        ret = lambda a: (a, hdul)
+    else:
+        ret = lambda a: a
+
+    try:
+        return ret(hdul[0].header['HIERARCH ESO QC CCF RV'])
+    except KeyError:
+        pass
+
+    try:
+        return ret(hdul[0].header['HIERARCH ESO DRS CCF RVC'])
+    except KeyError:
+        pass
 
     raise fail
 
-def getRVarray(fitsfile, keywords=None):
-    hdul = fits.open(fitsfile)
+
+def getRVarray(fitsfile, hdul=None, keywords=None, return_hdul=False, **kwargs):
+    if hdul is None:
+        hdul = _get_hdul(fitsfile, **kwargs)
 
     try:
         sta, ste, n = (hdul[0].header['HIERARCH ESO RV START'],
@@ -32,10 +55,14 @@ def getRVarray(fitsfile, keywords=None):
         except KeyError:
             raise KeyError
     finally:
-        return sta + ste * np.arange(n)
+        if return_hdul:
+            return sta + ste * np.arange(n), hdul
+        else:
+            return sta + ste * np.arange(n)
 
 
-def getBJD(fitsfile, keyword=None, mjd=True):
+def getBJD(fitsfile, hdul=None, keyword=None, mjd=True, return_hdul=False,
+           **kwargs):
     """
     Try to extract the bjd from `fitsfile`. If `keyword` is given, this function
     returns that keyword from the header of the fits file. Otherwise, it will
@@ -45,7 +72,8 @@ def getBJD(fitsfile, keyword=None, mjd=True):
     - MJD-OBS
     If `mjd` is True, the function returns *modified* julian day.
     """
-    hdul = fits.open(fitsfile)
+    if hdul is None:
+        hdul = _get_hdul(fitsfile, **kwargs)
 
     if keyword is not None:
         return hdul[0].header[keyword]
@@ -58,13 +86,48 @@ def getBJD(fitsfile, keyword=None, mjd=True):
     else:
         sub = 24e5
 
-    try: return hdul[0].header['HIERARCH ESO QC BJD'] - sub
-    except KeyError: pass
+    if return_hdul:
+        ret = lambda a: (a, hdul)
+    else:
+        ret = lambda a: a
 
-    try: return hdul[0].header['HIERARCH ESO DRS BJD'] - sub
-    except KeyError: pass
+    try:
+        return ret(hdul[0].header['HIERARCH ESO QC BJD'] - sub)
+    except KeyError:
+        pass
 
-    try: return hdul[0].header['MJD-OBS'] 
-    except KeyError: pass
+    try:
+        return ret(hdul[0].header['HIERARCH ESO DRS BJD'] - sub)
+    except KeyError:
+        pass
+
+    try:
+        return ret(hdul[0].header['MJD-OBS'])
+    except KeyError:
+        pass
+
+    raise fail
+
+
+def getFWHM(fitsfile, hdul=None, keyword=None, return_hdul=False, **kwargs):
+    if hdul is None:
+        hdul = _get_hdul(fitsfile, **kwargs)
+
+    if keyword is not None:
+        return hdul[0].header[keyword]
+
+    # need to look for it
+    fail = ValueError(
+        f'Could not find any FWHM keyword in header of "{fitsfile}"')
+
+    if return_hdul:
+        ret = lambda a: (a, hdul)
+    else:
+        ret = lambda a: a
+
+    try:
+        return ret(hdul[0].header['HIERARCH ESO QC CCF FWHM'])
+    except KeyError:
+        pass
 
     raise fail
