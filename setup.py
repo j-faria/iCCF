@@ -37,5 +37,4 @@ setup(
             ]
         },
     packages=find_packages(),
-    install_requires=['numpy', 'cached_property'],
 )
