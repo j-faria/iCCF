@@ -37,6 +37,8 @@ setup(
         ]
     },
     packages=find_packages(),
+    package_data={'': ['example_data/*']},
+    include_package_data=True,
     install_requires=['numpy', 'scipy', 'matplotlib',
                       'astropy', 'cached_property', 'paramiko'],
 )
