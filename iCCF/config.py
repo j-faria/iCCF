@@ -5,7 +5,11 @@ import json
 
 __all__ = ['get_config_file', 'get_config', 'add_to_config']
 
-user_base = site.getuserbase()
+try:
+    user_base = site.getuserbase()
+except AttributeError:
+    user_base = path.expanduser('~')
+
 config_file = 'iCCF.conf'
 
 def get_config_file():
