@@ -83,5 +83,6 @@ def find_myself():
 
 def load_example_data():
     """ Load the example CCF stored in iCCF/example_data """
-    topdir = find_myself()
-    return np.load(os.path.join(topdir, 'example_data', 'CCF1.npy'))
+    from pkg_resources import resource_stream
+    data = np.load(resource_stream(__name__, 'example_data/CCF1.npy'))
+    return data
