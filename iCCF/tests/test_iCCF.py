@@ -17,3 +17,8 @@ def test_properties(indicator):
     i = indicator
     i.RV
     i.FWHM
+
+
+def test_read_spectral_format():
+    from iCCF.chromatic import read_spectral_format
+    _ = read_spectral_format()

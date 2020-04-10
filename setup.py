@@ -37,7 +37,9 @@ setup(
         ]
     },
     packages=find_packages(),
-    package_data={'': ['example_data/*.npy']},
+    package_data={
+        '': ['example_data/*.npy', 'data/*'],
+    },
     include_package_data=True,
     zip_safe=False,
     install_requires=['numpy', 'scipy', 'matplotlib',

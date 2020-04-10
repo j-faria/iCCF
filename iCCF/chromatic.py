@@ -1,6 +1,7 @@
 import os
 import bisect
 import warnings
+from pkg_resources import resource_stream
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -16,11 +17,11 @@ from .utils import find_myself
 
 
 def read_spectral_format():
-    here = os.path.dirname(__file__)
-    sf_red_file = os.path.join(here, '..', 'data', 'spectral_format_red.dat')
-    red = np.loadtxt(sf_red_file)
-    sf_blue_file = os.path.join(here, '..', 'data', 'spectral_format_blue.dat')
-    blue = np.loadtxt(sf_blue_file)
+
+    sf_red_stream = resource_stream(__name__, 'data/spectral_format_red.dat')
+    red = np.loadtxt(sf_red_stream)
+    sf_blue_stream = resource_stream(__name__, 'data/spectral_format_blue.dat')
+    blue = np.loadtxt(sf_blue_stream)
 
     col_start_wave = 7
     col_end_wave = 8
