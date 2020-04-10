@@ -1,6 +1,7 @@
 from contextlib import closing
-from paramiko import SSHClient, AuthenticationException
+
 from astropy.io import fits
+from paramiko import SSHClient, AuthenticationException
 
 from .config import get_config, get_config_file
 

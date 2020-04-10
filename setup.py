@@ -30,12 +30,13 @@ setup(
         'License :: OSI Approved :: MIT License',
         'Programming Language :: Python :: 3',
     ],
-      entry_points={
+    entry_points={
         'console_scripts': [
             'iccf-fits-to-rdb = iCCF.scripts:fits_to_rdb',
             'iccf-make-ccf = iCCF.scripts:make_CCF',
-            ]
-        },
+        ]
+    },
     packages=find_packages(),
-    install_requires=['numpy', 'cached_property'],
+    install_requires=['numpy', 'scipy', 'matplotlib',
+                      'astropy', 'cached_property', 'paramiko'],
 )

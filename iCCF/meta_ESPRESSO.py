@@ -11,7 +11,10 @@ from itertools import product
 from bisect import bisect_left, bisect_right
 from glob import glob
 from scipy.interpolate import interp1d
-import tqdm
+try:
+    from tqdm import tqdm
+except ImportError:
+    tqdm = lambda x: x
 
 from .utils import doppler_shift_wave, get_ncores
 

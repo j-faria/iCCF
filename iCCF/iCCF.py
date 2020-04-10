@@ -1,4 +1,4 @@
-from collections import Iterable
+from collections.abc import Iterable
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -6,6 +6,7 @@ from os.path import basename
 from glob import glob
 import math
 import warnings
+
 from astropy.io import fits
 from cached_property import cached_property
 

@@ -1,8 +1,9 @@
+from functools import partial
+
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.optimize import brentq
 from scipy.interpolate import InterpolatedUnivariateSpline
-from functools import partial
 
 try:
     from PyAstronomy.pyasl import intep
