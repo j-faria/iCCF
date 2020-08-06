@@ -189,23 +189,27 @@ class Indicators:
     @property
     def RVerror(self):
         """ Photon-noise uncertainty on the measured radial velocity """
-        if self.eccf is not None: # CCF uncertainties were provided
+        if self.eccf is not None:  # CCF uncertainties were provided
             if self.eccf.size != self.ccf.size:
                 raise ValueError('CCF and CCF errors not of the same size')
             eccf = self.eccf
-        else: # try reading it from the HDU
+        else:  # try reading it from the HDU
             try:
-                eccf = self.HDU[2].data[-1,:] # for ESPRESSO
-            except Exception as e:
-                warnings.warn(e)
-                warnings.warn('Cannot access CCF uncertainties, using 1.0.')
-                eccf = np.ones_like(self.rv)
+                eccf = self.HDU[2].data[-1, :]  # for ESPRESSO
+            except Exception:
+                # warnings.warn('Cannot access CCF uncertainties, looking for value in header')
+                try:
+                    rve = getRVerror(None, hdul=self.HDU)
+                    return rve
+                except ValueError:
+                    # warnings.warn('Cannot access CCF uncertainties, using 1.0')
+                    eccf = np.ones_like(self.rv)
 
         return RVerror(self.rv, self.ccf, eccf)
 
-    @property
+    @cached_property
     def individual_RV(self):
-        """ Individual radial velocities calculated for each spectral order """
+        """ Individual radial velocities for each spectral order """
         if not hasattr(self, 'HDU'):
             raise ValueError(
                 'Cannot access individual CCFs (no HDU attribute)')
@@ -215,9 +219,27 @@ class Indicators:
             if np.nonzero(ccf)[0].size == 0:
                 RVs.append(np.nan)
             else:
-                RVs.append(RV(self.rv, ccf))
+                p0 = [-ccf.ptp(), self.RV, self.FWHM, ccf.mean()]
+                RVs.append(RV(self.rv, ccf, p0=p0))
 
         return np.array(RVs)
+
+    @cached_property
+    def individual_RVerror(self):
+        """ Individual radial velocity errors for each spectral order """
+        if not hasattr(self, 'HDU'):
+            raise ValueError(
+                'Cannot access individual CCFs (no HDU attribute)')
+
+        RVes = []
+        CCFs, eCCFs = self.HDU[self._hdu_number].data, self.HDU[2].data
+        for ccf, eccf in zip(CCFs[:-1], eCCFs[:-1]):
+            if np.nonzero(ccf)[0].size == 0:
+                RVes.append(np.nan)
+            else:
+                RVes.append(RVerror(self.rv, ccf, eccf))
+
+        return np.array(RVes)
 
     @property
     def FWHM(self):
@@ -271,19 +293,46 @@ class Indicators:
 
         return getFWHM(None, hdul=self.HDU)
 
+    @property
+    def pipeline_RVerror(self):
+        """ 
+        The RV error as derived by the pipeline and stored in CCF fits file
+        """
+        if not hasattr(self, 'HDU'):
+            raise ValueError('Cannot access header (no HDU attribute)')
+
+        return getRVerror(None, hdul=self.HDU)
+
     def check(self, verbose=False):
         """ Check if calculated RV and FWHM match the pipeline values """
-        val1, val2 = self.RV, self.pipeline_RV
-        if verbose:
-            print('comparing RV calculated/pipeline')
-        np.testing.assert_almost_equal(val1, val2, self._nEPS, err_msg='')
+        try:
+            val1, val2 = self.RV, self.pipeline_RV
+            if verbose:
+                print('comparing RV calculated/pipeline:', end=' ')
+                print(f'{val1:.{self._nEPS}f} / {val2:.{self._nEPS}f}')
+            np.testing.assert_almost_equal(val1, val2, self._nEPS, err_msg='')
+        except ValueError as e:
+            no_stack_warning(str(e))
 
-        val1, val2 = self.FWHM, self.pipeline_FWHM
-        if verbose:
-            print('comparing FWHM calculated/pipeline')
-            no_stack_warning(
-                'As of now, FWHM is only compared to 2 decimal places')
-        np.testing.assert_almost_equal(val1, val2, 2, err_msg='')
+        try:
+            val1, val2 = self.RVerror, self.pipeline_RVerror
+            if verbose:
+                print('comparing RVerror calculated/pipeline:', end=' ')
+                print(f'{val1:.{self._nEPS}f} / {val2:.{self._nEPS}f}')
+            np.testing.assert_almost_equal(val1, val2, self._nEPS, err_msg='')
+        except ValueError as e:
+            no_stack_warning(str(e))
+
+        try:
+            val1, val2 = self.FWHM, self.pipeline_FWHM
+            if verbose:
+                print('comparing FWHM calculated/pipeline:', end=' ')
+                print(f'{val1:.{2}f} / {val2:.{2}f}')
+                no_stack_warning(
+                    'As of now, FWHM is only compared to 2 decimal places')
+            np.testing.assert_almost_equal(val1, val2, 2, err_msg='')
+        except ValueError as e:
+            no_stack_warning(str(e))
 
         return True  # all checks passed!
 
@@ -293,11 +342,12 @@ class Indicators:
     def to_rdb(self, filename='stdout', clobber=False):
         return writers.to_rdb(self, filename, clobber)
 
-    def plot(self, show_fit=True, show_bisector=False):
+    def plot(self, ax=None, show_fit=True, show_bisector=False):
         """ Plot the CCF, together with the Gaussian fit and the bisector """
-        fig, ax = plt.subplots(constrained_layout=True)
+        if ax is None:
+            _, ax = plt.subplots(constrained_layout=True)
 
-        ax.plot(self.rv, self.ccf, 's-', ms=3)
+        ax.plot(self.rv, self.ccf, 's-', ms=3, label='observed CCF')
 
         if show_fit:
             vv = np.linspace(self.rv.min(), self.rv.max(), 1000)
@@ -314,6 +364,8 @@ class Indicators:
             bot_limit = out[-5][0]
             yy = np.linspace(bot_limit, top_limit, 100)
             ax.plot(bisf(yy), yy, 'k')
+
+        ax.legend()
         ax.set(xlabel='RV [km/s]', ylabel='CCF')
         plt.show()
 
