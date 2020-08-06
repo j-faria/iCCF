@@ -14,14 +14,13 @@ from .gaussian import gauss, gaussfit, FWHM as FWHMcalc, RV, RVerror, contrast
 from .bisector import BIS, BIS_HARPS as BIS_HARPS_calc, bisector
 from .vspan import vspan
 from .wspan import wspan
-from .keywords import getRVarray, getBJD, getRV, getFWHM
+from .keywords import *
 from . import writers
 from .ssh_files import ssh_fits_open
-from .utils import no_stack_warning
+from .utils import no_stack_warning, _get_hdul
 
-
-EPS = 1e-5 # all indicators are accurate up to this epsilon
-nEPS = abs(math.floor(math.log(EPS, 10))) # number of decimals for output
+EPS = 1e-5  # all indicators are accurate up to this epsilon
+nEPS = abs(math.floor(math.log(EPS, 10)))  # number of decimals for output
 
 
 def rdb_names(names):
@@ -88,10 +87,9 @@ class Indicators:
     def __len__(self):
         return 1
 
-
     @classmethod
     def from_file(cls, file, hdu_number=1, data_index=-1, sort_bjd=True,
-                  **kwargs):
+                  guess_instrument=True, **kwargs):
         """ 
         Create an `Indicators` object from one or more fits files.
         
@@ -104,9 +102,12 @@ class Indicators:
         data_index : int, default = -1
             The index of the .data array which contains the CCF. The data will 
             be accessed as ccf = HDU[hdu_number].data[data_index,:]
-        sort_bjd : bool
-            If True (default) and filename is a list of files, sort them by BJD
-            before reading
+        sort_bjd : bool (default True)
+            If True and filename is a list of files, sort them by BJD before 
+            reading
+        guess_instrument : bool (default False)
+            If True, try to guess the instrument and adjust both hdu_number
+            and data_index accordingly
         """
 
         if '*' in file or '?' in file:
@@ -114,29 +115,43 @@ class Indicators:
 
         # list of files
         if isinstance(file, Iterable) and not isinstance(file, str):
-            #! it's faster to do this after
-            # if sort_bjd:
-            #     file = sorted(file, key=getBJD)
-
-            indicators = [cls.from_file(f) for f in file]
+            indicators = []
+            for f in file:
+                indicators.append(
+                    cls.from_file(f, hdu_number, data_index, sort_bjd,
+                                  guess_instrument, **kwargs))
 
             if sort_bjd:
                 return sorted(indicators, key=lambda i: i.bjd)
             else:
                 return indicators
 
-            # N = len(file)
-            # rv, ccf = [], []
-            # for i in range(N):
-            #     f = file[i]
-            #     rv.append(getRVarray(f))
-            #     hdul = fits.open(f)
-            #     ccf.append(hdul[hdu_number].data[data_index, :])
-
         # just one file
         elif isinstance(file, str):
             user, host = kwargs.pop('USER', None), kwargs.pop('HOST', None)
-            rv, hdul = getRVarray(file, return_hdul=True, USER=user, HOST=host)
+            if guess_instrument:
+                # find the instrument and adjust hdu_number / data_index
+                hdul = _get_hdul(file, USER=user, HOST=host)
+                try:
+                    inst = getINSTRUMENT(file, hdul)
+
+                    if inst == 'ESPRESSO':
+                        hdu_number, data_index = 1, -1
+
+                    if inst == 'HARPS':
+                        hdu_number, data_index = 0, -1
+
+                except KeyError:
+                    print('Cannot find instrument in {file}')
+
+                rv, hdul = getRVarray(file, hdul=hdul, return_hdul=True,
+                                      USER=user, HOST=host)
+
+            else:
+                # just try reading it
+                rv, hdul = getRVarray(file, return_hdul=True, USER=user,
+                                      HOST=host)
+
             ccf = hdul[hdu_number].data[data_index, :]
             I = cls(rv, ccf, **kwargs)
 
@@ -152,12 +167,19 @@ class Indicators:
             raise ValueError(
                 'Input to `from_file` should be a string or list of strings.')
 
-
     @cached_property
     def bjd(self):
         """ Barycentric Julian Day when the observation was made """
         return getBJD(self.filename, hdul=self.HDU, mjd=False)
 
+    @property
+    def mask(self):
+        """ Mask used for the CCF calculation """
+        return getMASK(self.filename, hdul=self.HDU)
+
+    @property
+    def instrument(self):
+        return getINSTRUMENT(self.filename, hdul=self.HDU)
 
     @property
     def RV(self):
