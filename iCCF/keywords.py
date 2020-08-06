@@ -247,7 +247,7 @@ def getINSTRUMENT(fitsfile, hdul=None, keyword=None, return_hdul=False, **kwargs
         return hdul[0].header[keyword]
 
     # need to look for it
-    kws = ['INSTRUME']
+    kws = ['INSTRUME', 'HIERARCH ESO INS MODE']
     val = _try_keywords(hdul, *kws)
 
     if val is not None:
