@@ -1,3 +1,4 @@
+import warnings
 import numpy as np 
 from numpy import exp, log, sqrt, inf
 from scipy import optimize
@@ -22,16 +23,26 @@ def _gauss_partial_deriv(x, p):
 
 def _gauss_initial_guess(x, y):
     """ Educated guess (from the data) for Gaussian parameters. """
+    # these guesses tend to work better for narrow-ish gaussians
     p0 = []
-    p0.append(y.mean() - y.max())  # guess the amplitude
+    # guess the amplitude
+    p0.append(y.ptp())
     # guess the center, but maybe the CCF is upside down?
-    if y[x.size // 2] > y[0]:  # seems like it
+    m = y.mean()
+    ups_down = np.sign(np.percentile(y, 50) - m) != np.sign(y.max() - m)
+    if ups_down:  # seems like it
+        # warnings.warn('It seems the CCF might be upside-down?')
         p0.append(x[y.argmax()])
     else:
+        p0[0] *= -1
         p0.append(x[y.argmin()])
-    p0.append(1)  # guess the sigma
-    p0.append(y.mean())  # guess the offset 
+    # guess the width
+    p0.append(np.percentile(x, 68))
+    # guess the offset
+    p0.append(0.5 * (y[0] + y[-1]))
+
     return p0
+
 
 def gaussfit(x, y, p0=None, return_errors=False, use_deriv=True):
     """ 
@@ -56,7 +67,6 @@ def gaussfit(x, y, p0=None, return_errors=False, use_deriv=True):
     if (y == 0).all():
         return np.nan * np.ones(4)
 
-    # f = lambda x, A, x0, sig, offset: gauss(x, [A, x0, sig, offset])
     f = lambda p, x, y: gauss(x, p) - y
     if use_deriv:
         df = lambda p, x, y: _gauss_partial_deriv(x, p)
@@ -92,7 +102,7 @@ def fwhm2sig(fwhm):
     return fwhm / (2 * sqrt(2 * log(2)))
 
 
-def RV(rv, ccf):
+def RV(rv, ccf, **kwargs):
     """
     Calculate the radial velocity as the center of a Gaussian fit the CCF.
     
@@ -102,8 +112,10 @@ def RV(rv, ccf):
         The velocity values where the CCF is defined.
     ccf : array
         The values of the CCF profile.
+    kwargs : dict
+        Keyword arguments passed directly to gaussfit
     """
-    _, rv, _, _ = gaussfit(rv, ccf)
+    _, rv, _, _ = gaussfit(rv, ccf, **kwargs)
     return rv
 
 

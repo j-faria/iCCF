@@ -3,8 +3,12 @@ import re
 import warnings
 from copy import copy
 import numpy as np
+from astropy.io import fits
+
+from .ssh_files import ssh_fits_open
 
 _c = 299792.458
+
 
 def no_stack_warning(message):
     old_show = copy(warnings.showwarning)
@@ -86,3 +90,14 @@ def load_example_data():
     from pkg_resources import resource_stream
     data = np.load(resource_stream(__name__, 'example_data/CCF1.npy'))
     return data
+
+
+def _get_hdul(fitsfile, **kwargs):
+    """ Dispatch opening of fits files to fits.open in normal cases, or to
+    `ssh_fits_open` for filenames starting with "ssh:"
+    """
+    if fitsfile.startswith('ssh:'):
+        hdul = ssh_fits_open(fitsfile[4:], **kwargs)
+    else:
+        hdul = fits.open(fitsfile)
+    return hdul

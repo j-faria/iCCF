@@ -1,6 +1,6 @@
 # this file is part of iCCF
 
-__version__ = '0.3.7'
+__version__ = '0.3.8'
 
 __author__ = 'João Faria'
 __license__ = 'MIT'

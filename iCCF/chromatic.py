@@ -72,12 +72,14 @@ class chromaticRV():
             indicators = [indicators, ]
         self.I = self.indicators = indicators
         # store all but the last CCF for each of the Indicators instances
-        self.ccfs = [i.HDU[1].data[:-1] for i in self.I]
+        self.ccfs = [i.HDU[i._hdu_number].data[:-1] for i in self.I]
         # try storing the CCF uncertainties as well
-        try:
-            self.eccfs = [i.HDU[2].data[:-1] for i in self.I]
-        except IndexError:
-            self.eccfs = self.n * [None]
+        self.eccfs = []
+        for i in self.I:
+            try:
+                self.eccfs.append(i.HDU[2].data[:-1])
+            except IndexError:
+                self.eccfs.append(None)
 
 
     def __repr__(self):
@@ -186,13 +188,15 @@ class chromaticRV():
                 eccf = np.sqrt(np.square(full_eccf[orders]).sum(axis=0))
                 rve.append(RVerror(i.rv, ccf, eccf))
                 has_errors = True
+            else:
+                rve.append(np.nan)
 
-        if not has_errors:
-            warnings.warn(
-                'Cannot access CCF uncertainties to calculate RV error')
-            return np.array(rv), None
-        else:
-            return np.array(rv), np.array(rve)
+        # if not has_errors:
+        #     warnings.warn(
+        #         'Cannot access CCF uncertainties to calculate RV error')
+        #     return np.array(rv), None
+        # else:
+        return np.array(rv), np.array(rve)
 
 
     @property
@@ -227,24 +231,71 @@ class chromaticRV():
     @property
     def fullRV(self):
         return np.fromiter((i.RV for i in self.I), np.float, self.n)
-    
+
     @property
     def fullRVerror(self):
         return np.fromiter((i.RVerror for i in self.I), np.float, self.n)
 
-    def plot(self):
-        _, axs = plt.subplots(3+1, 1, sharex=True, sharey=False)
+    def plot(self, periodogram=False):
+        ncols = 2 if periodogram else 1
 
-        axs[0].errorbar(self.time, self.fullRV, self.fullRVerror, fmt='o')
+        fig, axs = plt.subplots(3 + 1, ncols,) #sharex=False, sharey=False,
+        # constrained_layout=True)
 
-        axs[1].errorbar(self.time, self.blueRV, self._blueRVerror, fmt='o')
-        axs[2].errorbar(self.time, self.midRV, self._midRVerror, fmt='o')
-        axs[3].errorbar(self.time, self.redRV, self._redRVerror, fmt='o')
+        axs = axs.ravel()
 
-        plt.show()
-        
+        if periodogram:
+            indices_plots = np.arange(0, 8, 2)
+        else:
+            indices_plots = np.arange(0, 4)
 
-    def plot_ccfs(self, orders=None):
+        kw = dict(fmt='o', ms=3)
+
+        axs[indices_plots[0]].errorbar(self.time,
+                                       self.fullRV - self.fullRV.mean(),
+                                       self.fullRVerror, color='k', **kw)
+
+        axs[indices_plots[1]].errorbar(self.time,
+                                       self.blueRV - self.blueRV.mean(),
+                                       self._blueRVerror, color='b', **kw)
+        axs[indices_plots[2]].errorbar(self.time,
+                                       self.midRV - self.midRV.mean(),
+                                       self._midRVerror, color='g', **kw)
+        axs[indices_plots[3]].errorbar(self.time,
+                                       self.redRV - self.redRV.mean(),
+                                       self._redRVerror, color='r', **kw)
+
+        if periodogram:
+            from astropy.timeseries import LombScargle
+
+            model = LombScargle(self.time, self.fullRV, self.fullRVerror)
+            f, p = model.autopower()
+            axs[1].semilogx(1 / f, p, color='k')
+            axs[1].hlines(model.false_alarm_level([0.1, 0.01]),
+                          *axs[1].get_xlim(), alpha=0.2, ls='--')
+
+            model = LombScargle(self.time, self.blueRV, self._blueRVerror)
+            f, p = model.autopower()
+            axs[3].semilogx(1 / f, p, color='b')
+            axs[3].hlines(model.false_alarm_level([0.1, 0.01]),
+                          *axs[3].get_xlim(), alpha=0.2, ls='--')
+
+            model = LombScargle(self.time, self.midRV, self._midRVerror)
+            f, p = model.autopower()
+            axs[5].semilogx(1 / f, p, color='g')
+            axs[5].hlines(model.false_alarm_level([0.1, 0.01]),
+                          *axs[5].get_xlim(), alpha=0.2, ls='--')
+
+            model = LombScargle(self.time, self.redRV, self._redRVerror)
+            f, p = model.autopower()
+            axs[7].semilogx(1 / f, p, color='r')
+            axs[7].hlines(model.false_alarm_level([0.1, 0.01]),
+                          *axs[7].get_xlim(), alpha=0.2, ls='--')
+
+        return fig, axs
+
+
+    def plot_ccfs(self, orders=None, show_filenames=False):
         if orders is None:
             orders = slice(None, None)
         elif isinstance(orders, int):
@@ -252,9 +303,14 @@ class chromaticRV():
         elif isinstance(orders, tuple):
             orders = slice(*orders)
 
+        fig, ax = plt.subplots(1, 1)  #, constrained_layout=True)
         for i in self.I:
-            fig, ax = plt.subplots(1, 1, constrained_layout=True)
-            ax.plot(i.ccf[orders].T)
+            line = ax.plot(i.rv, i.ccf[orders].T)
+            if show_filenames:
+                color = line[0].get_color()
+                ax.text(i.rv[0], i.ccf[0], i.filename, fontsize=8, color=color)
+        
+        ax.set(xlabel='RV', ylabel='CCF')
 
 
 

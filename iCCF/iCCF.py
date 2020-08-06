@@ -14,14 +14,13 @@ from .gaussian import gauss, gaussfit, FWHM as FWHMcalc, RV, RVerror, contrast
 from .bisector import BIS, BIS_HARPS as BIS_HARPS_calc, bisector
 from .vspan import vspan
 from .wspan import wspan
-from .keywords import getRVarray, getBJD, getRV, getFWHM
+from .keywords import *
 from . import writers
 from .ssh_files import ssh_fits_open
-from .utils import no_stack_warning
+from .utils import no_stack_warning, _get_hdul
 
-
-EPS = 1e-5 # all indicators are accurate up to this epsilon
-nEPS = abs(math.floor(math.log(EPS, 10))) # number of decimals for output
+EPS = 1e-5  # all indicators are accurate up to this epsilon
+nEPS = abs(math.floor(math.log(EPS, 10)))  # number of decimals for output
 
 
 def rdb_names(names):
@@ -88,10 +87,9 @@ class Indicators:
     def __len__(self):
         return 1
 
-
     @classmethod
     def from_file(cls, file, hdu_number=1, data_index=-1, sort_bjd=True,
-                  **kwargs):
+                  guess_instrument=True, **kwargs):
         """ 
         Create an `Indicators` object from one or more fits files.
         
@@ -104,9 +102,12 @@ class Indicators:
         data_index : int, default = -1
             The index of the .data array which contains the CCF. The data will 
             be accessed as ccf = HDU[hdu_number].data[data_index,:]
-        sort_bjd : bool
-            If True (default) and filename is a list of files, sort them by BJD
-            before reading
+        sort_bjd : bool (default True)
+            If True and filename is a list of files, sort them by BJD before 
+            reading
+        guess_instrument : bool (default False)
+            If True, try to guess the instrument and adjust both hdu_number
+            and data_index accordingly
         """
 
         if '*' in file or '?' in file:
@@ -114,30 +115,50 @@ class Indicators:
 
         # list of files
         if isinstance(file, Iterable) and not isinstance(file, str):
-            #! it's faster to do this after
-            # if sort_bjd:
-            #     file = sorted(file, key=getBJD)
-
-            indicators = [cls.from_file(f) for f in file]
+            indicators = []
+            for f in file:
+                indicators.append(
+                    cls.from_file(f, hdu_number, data_index, sort_bjd,
+                                  guess_instrument, **kwargs))
 
             if sort_bjd:
                 return sorted(indicators, key=lambda i: i.bjd)
             else:
                 return indicators
 
-            # N = len(file)
-            # rv, ccf = [], []
-            # for i in range(N):
-            #     f = file[i]
-            #     rv.append(getRVarray(f))
-            #     hdul = fits.open(f)
-            #     ccf.append(hdul[hdu_number].data[data_index, :])
-
         # just one file
         elif isinstance(file, str):
+            if 'S1D' in file:
+                no_stack_warning(
+                    f"filename {file} contains 'S1D', are you sure it's a CCF?"
+                )
+
             user, host = kwargs.pop('USER', None), kwargs.pop('HOST', None)
-            rv, hdul = getRVarray(file, return_hdul=True, USER=user, HOST=host)
+            if guess_instrument:
+                # find the instrument and adjust hdu_number / data_index
+                hdul = _get_hdul(file, USER=user, HOST=host)
+                try:
+                    inst = getINSTRUMENT(file, hdul)
+
+                    if inst == 'ESPRESSO':
+                        hdu_number, data_index = 1, -1
+
+                    if inst == 'HARPS':
+                        hdu_number, data_index = 0, -1
+
+                except KeyError:
+                    print('Cannot find instrument in {file}')
+
+                rv, hdul = getRVarray(file, hdul=hdul, return_hdul=True,
+                                      USER=user, HOST=host)
+
+            else:
+                # just try reading it
+                rv, hdul = getRVarray(file, return_hdul=True, USER=user,
+                                      HOST=host)
+
             ccf = hdul[hdu_number].data[data_index, :]
+
             I = cls(rv, ccf, **kwargs)
 
             # save attributes
@@ -152,12 +173,19 @@ class Indicators:
             raise ValueError(
                 'Input to `from_file` should be a string or list of strings.')
 
-
     @cached_property
     def bjd(self):
         """ Barycentric Julian Day when the observation was made """
         return getBJD(self.filename, hdul=self.HDU, mjd=False)
 
+    @property
+    def mask(self):
+        """ Mask used for the CCF calculation """
+        return getMASK(self.filename, hdul=self.HDU)
+
+    @property
+    def instrument(self):
+        return getINSTRUMENT(self.filename, hdul=self.HDU)
 
     @property
     def RV(self):
@@ -167,23 +195,27 @@ class Indicators:
     @property
     def RVerror(self):
         """ Photon-noise uncertainty on the measured radial velocity """
-        if self.eccf is not None: # CCF uncertainties were provided
+        if self.eccf is not None:  # CCF uncertainties were provided
             if self.eccf.size != self.ccf.size:
                 raise ValueError('CCF and CCF errors not of the same size')
             eccf = self.eccf
-        else: # try reading it from the HDU
+        else:  # try reading it from the HDU
             try:
-                eccf = self.HDU[2].data[-1,:] # for ESPRESSO
-            except Exception as e:
-                warnings.warn(e)
-                warnings.warn('Cannot access CCF uncertainties, using 1.0.')
-                eccf = np.ones_like(self.rv)
+                eccf = self.HDU[2].data[-1, :]  # for ESPRESSO
+            except Exception:
+                # warnings.warn('Cannot access CCF uncertainties, looking for value in header')
+                try:
+                    rve = getRVerror(None, hdul=self.HDU)
+                    return rve
+                except ValueError:
+                    # warnings.warn('Cannot access CCF uncertainties, using 1.0')
+                    eccf = np.ones_like(self.rv)
 
         return RVerror(self.rv, self.ccf, eccf)
 
-    @property
+    @cached_property
     def individual_RV(self):
-        """ Individual radial velocities calculated for each spectral order """
+        """ Individual radial velocities for each spectral order """
         if not hasattr(self, 'HDU'):
             raise ValueError(
                 'Cannot access individual CCFs (no HDU attribute)')
@@ -193,9 +225,27 @@ class Indicators:
             if np.nonzero(ccf)[0].size == 0:
                 RVs.append(np.nan)
             else:
-                RVs.append(RV(self.rv, ccf))
+                p0 = [-ccf.ptp(), self.RV, self.FWHM, ccf.mean()]
+                RVs.append(RV(self.rv, ccf, p0=p0))
 
         return np.array(RVs)
+
+    @cached_property
+    def individual_RVerror(self):
+        """ Individual radial velocity errors for each spectral order """
+        if not hasattr(self, 'HDU'):
+            raise ValueError(
+                'Cannot access individual CCFs (no HDU attribute)')
+
+        RVes = []
+        CCFs, eCCFs = self.HDU[self._hdu_number].data, self.HDU[2].data
+        for ccf, eccf in zip(CCFs[:-1], eCCFs[:-1]):
+            if np.nonzero(ccf)[0].size == 0:
+                RVes.append(np.nan)
+            else:
+                RVes.append(RVerror(self.rv, ccf, eccf))
+
+        return np.array(RVes)
 
     @property
     def FWHM(self):
@@ -249,19 +299,46 @@ class Indicators:
 
         return getFWHM(None, hdul=self.HDU)
 
+    @property
+    def pipeline_RVerror(self):
+        """ 
+        The RV error as derived by the pipeline and stored in CCF fits file
+        """
+        if not hasattr(self, 'HDU'):
+            raise ValueError('Cannot access header (no HDU attribute)')
+
+        return getRVerror(None, hdul=self.HDU)
+
     def check(self, verbose=False):
         """ Check if calculated RV and FWHM match the pipeline values """
-        val1, val2 = self.RV, self.pipeline_RV
-        if verbose:
-            print('comparing RV calculated/pipeline')
-        np.testing.assert_almost_equal(val1, val2, self._nEPS, err_msg='')
+        try:
+            val1, val2 = self.RV, self.pipeline_RV
+            if verbose:
+                print('comparing RV calculated/pipeline:', end=' ')
+                print(f'{val1:.{self._nEPS}f} / {val2:.{self._nEPS}f}')
+            np.testing.assert_almost_equal(val1, val2, self._nEPS, err_msg='')
+        except ValueError as e:
+            no_stack_warning(str(e))
 
-        val1, val2 = self.FWHM, self.pipeline_FWHM
-        if verbose:
-            print('comparing FWHM calculated/pipeline')
-            no_stack_warning(
-                'As of now, FWHM is only compared to 2 decimal places')
-        np.testing.assert_almost_equal(val1, val2, 2, err_msg='')
+        try:
+            val1, val2 = self.RVerror, self.pipeline_RVerror
+            if verbose:
+                print('comparing RVerror calculated/pipeline:', end=' ')
+                print(f'{val1:.{self._nEPS}f} / {val2:.{self._nEPS}f}')
+            np.testing.assert_almost_equal(val1, val2, self._nEPS, err_msg='')
+        except ValueError as e:
+            no_stack_warning(str(e))
+
+        try:
+            val1, val2 = self.FWHM, self.pipeline_FWHM
+            if verbose:
+                print('comparing FWHM calculated/pipeline:', end=' ')
+                print(f'{val1:.{2}f} / {val2:.{2}f}')
+                no_stack_warning(
+                    'As of now, FWHM is only compared to 2 decimal places')
+            np.testing.assert_almost_equal(val1, val2, 2, err_msg='')
+        except ValueError as e:
+            no_stack_warning(str(e))
 
         return True  # all checks passed!
 
@@ -271,11 +348,12 @@ class Indicators:
     def to_rdb(self, filename='stdout', clobber=False):
         return writers.to_rdb(self, filename, clobber)
 
-    def plot(self, show_fit=True, show_bisector=False):
+    def plot(self, ax=None, show_fit=True, show_bisector=False):
         """ Plot the CCF, together with the Gaussian fit and the bisector """
-        fig, ax = plt.subplots(constrained_layout=True)
+        if ax is None:
+            _, ax = plt.subplots(constrained_layout=True)
 
-        ax.plot(self.rv, self.ccf, 's-', ms=3)
+        ax.plot(self.rv, self.ccf, 's-', ms=3, label='observed CCF')
 
         if show_fit:
             vv = np.linspace(self.rv.min(), self.rv.max(), 1000)
@@ -292,8 +370,28 @@ class Indicators:
             bot_limit = out[-5][0]
             yy = np.linspace(bot_limit, top_limit, 100)
             ax.plot(bisf(yy), yy, 'k')
+
+        ax.legend()
         ax.set(xlabel='RV [km/s]', ylabel='CCF')
         plt.show()
+
+    def plot_individual_RV(self, ax=None):
+        """ Plot the RV for individual orders """
+        if ax is None:
+            _, ax = plt.subplots(constrained_layout=True)
+
+        n = self.individual_RV.size
+        orders = np.arange(1, n + 1)
+        ax.errorbar(orders, self.individual_RV,
+                    self.individual_RVerror, fmt='o', label='individual RV')
+        ax.axhline(self.RV, color='darkgreen', ls='--', label='final RV')
+
+        m = np.full_like(orders, self.RV, dtype=np.float)
+        e = np.full_like(orders, self.RVerror, dtype=np.float)
+        ax.fill_between(orders, m-e, m+e, color='g', alpha=0.3)
+
+        ax.legend()
+        ax.set(xlabel='spectral order', ylabel='RV', xlim=(-5, n+5))
 
 
 def indicators_from_files(files, rdb_format=True, show=True, show_bjd=True,
@@ -320,7 +418,7 @@ def indicators_from_files(files, rdb_format=True, show=True, show_bjd=True,
                     print(I.on_indicators)
 
         if rdb_format:
-            print(
-                '\t'.join([f'{bjd:<.6f}'] + [f'{ind:<.5f}' for ind in I.all]))
+            print('\t'.join([f'{bjd:<.6f}'] + [f'{ind:<.5f}'
+                                               for ind in I.all]))
         else:
             print((bjd, ) + I.all)

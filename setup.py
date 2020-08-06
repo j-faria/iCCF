@@ -15,7 +15,6 @@ with open("iCCF/version.py") as fp:
     exec(fp.read(), version)
     __version__ = version['__version__']
 
-
 setup(
     name='iCCF',
     version=__version__,
@@ -42,6 +41,8 @@ setup(
     },
     include_package_data=True,
     zip_safe=False,
-    install_requires=['numpy', 'scipy', 'matplotlib',
-                      'astropy', 'cached_property', 'paramiko'],
+    install_requires=[
+        'numpy', 'scipy', 'matplotlib', 'astropy', 'cached_property',
+        'paramiko'
+    ],
 )
