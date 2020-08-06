@@ -56,7 +56,6 @@ def gaussfit(x, y, p0=None, return_errors=False, use_deriv=True):
     if (y == 0).all():
         return np.nan * np.ones(4)
 
-    # f = lambda x, A, x0, sig, offset: gauss(x, [A, x0, sig, offset])
     f = lambda p, x, y: gauss(x, p) - y
     if use_deriv:
         df = lambda p, x, y: _gauss_partial_deriv(x, p)
@@ -92,7 +91,7 @@ def fwhm2sig(fwhm):
     return fwhm / (2 * sqrt(2 * log(2)))
 
 
-def RV(rv, ccf):
+def RV(rv, ccf, **kwargs):
     """
     Calculate the radial velocity as the center of a Gaussian fit the CCF.
     
@@ -102,8 +101,10 @@ def RV(rv, ccf):
         The velocity values where the CCF is defined.
     ccf : array
         The values of the CCF profile.
+    kwargs : dict
+        Keyword arguments passed directly to gaussfit
     """
-    _, rv, _, _ = gaussfit(rv, ccf)
+    _, rv, _, _ = gaussfit(rv, ccf, **kwargs)
     return rv
 
 
