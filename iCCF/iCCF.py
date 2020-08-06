@@ -128,6 +128,11 @@ class Indicators:
 
         # just one file
         elif isinstance(file, str):
+            if 'S1D' in file:
+                no_stack_warning(
+                    f"filename {file} contains 'S1D', are you sure it's a CCF?"
+                )
+
             user, host = kwargs.pop('USER', None), kwargs.pop('HOST', None)
             if guess_instrument:
                 # find the instrument and adjust hdu_number / data_index
@@ -153,6 +158,7 @@ class Indicators:
                                       HOST=host)
 
             ccf = hdul[hdu_number].data[data_index, :]
+
             I = cls(rv, ccf, **kwargs)
 
             # save attributes
@@ -369,6 +375,24 @@ class Indicators:
         ax.set(xlabel='RV [km/s]', ylabel='CCF')
         plt.show()
 
+    def plot_individual_RV(self, ax=None):
+        """ Plot the RV for individual orders """
+        if ax is None:
+            _, ax = plt.subplots(constrained_layout=True)
+
+        n = self.individual_RV.size
+        orders = np.arange(1, n + 1)
+        ax.errorbar(orders, self.individual_RV,
+                    self.individual_RVerror, fmt='o', label='individual RV')
+        ax.axhline(self.RV, color='darkgreen', ls='--', label='final RV')
+
+        m = np.full_like(orders, self.RV, dtype=np.float)
+        e = np.full_like(orders, self.RVerror, dtype=np.float)
+        ax.fill_between(orders, m-e, m+e, color='g', alpha=0.3)
+
+        ax.legend()
+        ax.set(xlabel='spectral order', ylabel='RV', xlim=(-5, n+5))
+
 
 def indicators_from_files(files, rdb_format=True, show=True, show_bjd=True,
                           sort_bjd=True, **kwargs):
@@ -394,7 +418,7 @@ def indicators_from_files(files, rdb_format=True, show=True, show_bjd=True,
                     print(I.on_indicators)
 
         if rdb_format:
-            print(
-                '\t'.join([f'{bjd:<.6f}'] + [f'{ind:<.5f}' for ind in I.all]))
+            print('\t'.join([f'{bjd:<.6f}'] + [f'{ind:<.5f}'
+                                               for ind in I.all]))
         else:
             print((bjd, ) + I.all)
