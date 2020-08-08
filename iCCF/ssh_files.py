@@ -29,7 +29,7 @@ def get_user_host_msg(USER=None, HOST=None):
     return USER, HOST
 
 
-def ssh_fits_open(filename, USER=None, HOST=None, verbose=True):
+def ssh_fits_open(filename, USER=None, HOST=None, port=22, verbose=True):
     """
     A wrapper around fits.open to load remote files in USER@HOST, using SSH
     and SFTP clients.
@@ -40,6 +40,8 @@ def ssh_fits_open(filename, USER=None, HOST=None, verbose=True):
         The username for the SSH connection
     HOST: str (optional)
         The host for the SSH connection
+    port: int (optional, default: 22)
+        The SSH port to use for the connection
     verbose: bool (optional, default True)
         Whether to be verbose about the connection
     """
@@ -56,7 +58,7 @@ def ssh_fits_open(filename, USER=None, HOST=None, verbose=True):
             print(f'Connecting to "{HOST}" with username "{USER}"')
 
         try:
-            client.connect(HOST, username=USER)
+            client.connect(HOST, username=USER, port=port)
         except AuthenticationException:
             import getpass
             p = getpass.getpass(prompt='Password: ', stream=None) 
