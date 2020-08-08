@@ -128,15 +128,21 @@ class Indicators:
 
         # just one file
         elif isinstance(file, str):
-            if 'S1D' in file:
-                no_stack_warning(
-                    f"filename {file} contains 'S1D', are you sure it's a CCF?"
-                )
+
+            for notccf in ('S1D', 'S2D'):
+                if notccf in file:
+                    msg = f"filename {file} contains '{notccf}', "\
+                           "are you sure it contains a CCF?"
+                    no_stack_warning(msg)
 
             user, host = kwargs.pop('USER', None), kwargs.pop('HOST', None)
+            port = kwargs.pop('port', 22)
+            verbose = kwargs.pop('verbose', False)
+
             if guess_instrument:
                 # find the instrument and adjust hdu_number / data_index
-                hdul = _get_hdul(file, USER=user, HOST=host)
+                hdul = _get_hdul(file, USER=user, HOST=host,
+                                 port=port, verbose=verbose)
                 try:
                     inst = getINSTRUMENT(file, hdul)
 
