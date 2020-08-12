@@ -37,7 +37,7 @@ def _gauss_initial_guess(x, y):
         p0[0] *= -1
         p0.append(x[y.argmin()])
     # guess the width
-    p0.append(np.percentile(x, 68))
+    p0.append(1)
     # guess the offset
     p0.append(0.5 * (y[0] + y[-1]))
 
