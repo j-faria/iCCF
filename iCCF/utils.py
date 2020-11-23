@@ -99,5 +99,6 @@ def _get_hdul(fitsfile, **kwargs):
     if fitsfile.startswith('ssh:'):
         hdul = ssh_fits_open(fitsfile[4:], **kwargs)
     else:
-        hdul = fits.open(fitsfile)
+        hdul = fits.open(fitsfile, lazy_load_hdus=False, memmap=False)
+    
     return hdul

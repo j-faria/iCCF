@@ -3,6 +3,7 @@ from collections.abc import Iterable
 import numpy as np
 import matplotlib.pyplot as plt
 from os.path import basename
+from copy import copy
 from glob import glob
 import math
 import warnings
@@ -166,7 +167,13 @@ class Indicators:
 
             # save attributes
             I.filename = file
+            I._SCIDATA = hdul[hdu_number].data
+            try:
+                I._ERRDATA = hdul[2].data
+            except IndexError:
+                pass
             I.HDU = hdul
+            hdul.close()
             I._hdu_number = hdu_number
             I._data_index = data_index
 
@@ -204,7 +211,7 @@ class Indicators:
             eccf = self.eccf
         else:  # try reading it from the HDU
             try:
-                eccf = self.HDU[2].data[-1, :]  # for ESPRESSO
+                eccf = self.ERRDATA[-1, :]  # for ESPRESSO
             except Exception:
                 # warnings.warn('Cannot access CCF uncertainties, looking for value in header')
                 try:
@@ -224,7 +231,7 @@ class Indicators:
                 'Cannot access individual CCFs (no HDU attribute)')
 
         RVs = []
-        for ccf in self.HDU[self._hdu_number].data[:-1]:
+        for ccf in self._SCIDATA[:-1]:
             if np.nonzero(ccf)[0].size == 0:
                 RVs.append(np.nan)
             else:
@@ -241,7 +248,7 @@ class Indicators:
                 'Cannot access individual CCFs (no HDU attribute)')
 
         RVes = []
-        CCFs, eCCFs = self.HDU[self._hdu_number].data, self.HDU[2].data
+        CCFs, eCCFs = self._SCIDATA, self._ERRDATA
         for ccf, eccf in zip(CCFs[:-1], eCCFs[:-1]):
             if np.nonzero(ccf)[0].size == 0:
                 RVes.append(np.nan)
