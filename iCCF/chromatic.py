@@ -4,6 +4,7 @@ import warnings
 from pkg_resources import resource_stream
 
 import numpy as np
+from numpy import sqrt, sum
 import matplotlib.pyplot as plt
 
 from astropy.io import fits
@@ -237,6 +238,24 @@ class chromaticRV():
     @property
     def fullRVerror(self):
         return np.fromiter((i.RVerror for i in self.I), np.float, self.n)
+
+
+    def bin(self, night_indices):
+        u = np.unique(night_indices)
+        ccfs = np.array(self.ccfs)  # shape: (Nobs, Norders, Nrv)
+        ccfsb = [ccfs[night_indices == i].mean(axis=0) for i in u]
+        ccfsb = np.array(ccfsb)  # shape: (Nobs_binned, Norders, Nrv)
+        self.ccfs = ccfsb
+
+        eccfs = np.array(self.eccfs)  # shape: (Nobs, Norders, Nrv)
+        eccfsb = [sqrt(sum(eccfs[night_indices == i]**2, axis=0)) for i in u]
+        eccfsb = np.array(eccfsb)  # shape: (Nobs_binned, Norders, Nrv)
+        self.eccfs = eccfsb
+
+        rv = self.I[0].rv
+        self.indicators = [Indicators(rv, ccf.sum(axis=0)) for ccf in ccfsb]
+        self.I = self.indicators
+        self.n = len(self.I)
 
     def plot(self, periodogram=False):
         ncols = 2 if periodogram else 1
