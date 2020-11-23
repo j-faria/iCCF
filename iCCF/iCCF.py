@@ -145,6 +145,9 @@ class Indicators:
 
                     if inst == 'HARPS':
                         hdu_number, data_index = 0, -1
+                    
+                    if inst == 'CORALIE':
+                        hdu_number, data_index = 0, -1
 
                 except KeyError:
                     print('Cannot find instrument in {file}')
