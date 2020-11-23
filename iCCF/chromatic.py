@@ -73,6 +73,8 @@ class chromaticRV():
         self.I = self.indicators = indicators
         # store all but the last CCF for each of the Indicators instances
         self.ccfs = [i.HDU[i._hdu_number].data[:-1] for i in self.I]
+        # store the last CCFs separately
+        self.ccf = [i.HDU[i._hdu_number].data[-1] for i in self.I]
         # try storing the CCF uncertainties as well
         self.eccfs = []
         for i in self.I:
