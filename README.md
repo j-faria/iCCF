@@ -5,7 +5,7 @@
 </p>
 
 
-This is an implementation of common line profile indicators
+An implementation of common line profile indicators
 measured from the cross-correlation function (CCF).
 
 [![Build Status](https://travis-ci.org/j-faria/iCCF.svg?branch=master)](https://travis-ci.org/j-faria/iCCF)
