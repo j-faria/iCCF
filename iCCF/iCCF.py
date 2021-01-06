@@ -176,6 +176,7 @@ class Indicators:
             I._SCIDATA = hdul[hdu_number].data
             try:
                 I._ERRDATA = hdul[2].data
+                I._QUALDATA = hdul[3].data
             except IndexError:
                 pass
             I.HDU = hdul
@@ -217,9 +218,9 @@ class Indicators:
             eccf = self.eccf
         else:  # try reading it from the HDU
             try:
-                eccf = self.ERRDATA[-1, :]  # for ESPRESSO
+                eccf = self._ERRDATA[-1, :]  # for ESPRESSO
             except Exception:
-                # warnings.warn('Cannot access CCF uncertainties, looking for value in header')
+                warnings.warn('Cannot access CCF uncertainties, looking for value in header')
                 try:
                     rve = getRVerror(None, hdul=self.HDU)
                     return rve

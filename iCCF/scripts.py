@@ -66,17 +66,23 @@ def _parse_args_make_CCF():
     specified in the S2D file.
     """
     parser = argparse.ArgumentParser(description=desc, prog='iccf-make-ccf')
-    
-    parser.add_argument('-m', '--mask', type=str,
-                        help='Mask (G2, G9, K6, M2, ...)')
-    
+
+    help_mask = 'Mask (G2, G9, K6, M2, ...). '\
+                'A file called `ESPRESSO_mask.fits` should exist.'
+    parser.add_argument('-m', '--mask', type=str, help=help_mask)
+
     parser.add_argument('-rv', type=str,
                         help='RV array, in the form start:end:step [km/s]')
-    
+
     default_ncores = get_ncores()
     help_ncores = 'Number of cores to distribute calculation; '\
                   f'default is all available ({default_ncores})'
     parser.add_argument('--ncores', type=int, help=help_ncores)
+
+    help_ssh = 'An SSH user and host with which the script will try to find' \
+               'required calibration files. It uses the `locate` and `scp`' \
+               'commands to find and copy the file from the host'
+    parser.add_argument('--ssh', type=str, metavar='user@host', help=help_ssh)
 
     args = parser.parse_args()
     return args, parser
@@ -84,10 +90,10 @@ def _parse_args_make_CCF():
 
 def make_CCF():
     args, _ = _parse_args_make_CCF()
-    # print(args)
 
     if sys.stdin.isatty():
         print('pipe something (a list of S2D fits files) into this script')
+        print('example: ls *S2D* | iccf-make-ccf [options]')
         sys.exit(1)
     else:
         files = [line.strip() for line in sys.stdin]
@@ -102,7 +108,7 @@ def make_CCF():
                     start = header['HIERARCH ESO RV START']
                     step = header['HIERARCH ESO RV STEP']
                     end = OBJ_RV + (OBJ_RV - start)
-                    print('using RV array from S2D file:',
+                    print('Using RV array from S2D file:',
                           f'{start} : {end} : {step} km/s')
                     rvarray = np.arange(start, end + step, step)
                 except KeyError:
@@ -115,14 +121,24 @@ def make_CCF():
 
             mask = args.mask
             if mask is None:
-                mask = header['HIERARCH ESO QC CCF MASK']
-                print('using mask from S2D file:', mask)
+                try:
+                    mask = header['HIERARCH ESO QC CCF MASK']
+                except KeyError:
+                    try:
+                        mask = header['HIERARCH ESO PRO REC1 CAL25 NAME']
+                        if 'ESPRESSO_' in mask:
+                            mask = mask[9:11]
+                    except KeyError:
+                        print('Could not find CCF mask in S2D file.',
+                              'Please use the -m argument.')
+                        sys.exit(1)
+                print('Using mask from S2D file:', mask)
 
             inst = header['INSTRUME']
 
             if inst == 'ESPRESSO':
                 meta_ESPRESSO.calculate_ccf(file, mask=mask, rvarray=rvarray,
-                                            ncores=args.ncores)
+                                            ncores=args.ncores, ssh=args.ssh)
 
             elif inst == 'HARPS':
                 print('dont know what to do with HARPS! sorry')
