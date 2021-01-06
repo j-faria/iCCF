@@ -242,6 +242,7 @@ class chromaticRV():
 
     def bin(self, night_indices):
         u = np.unique(night_indices)
+
         ccfs = np.array(self.ccfs)  # shape: (Nobs, Norders, Nrv)
         ccfsb = [ccfs[night_indices == i].mean(axis=0) for i in u]
         ccfsb = np.array(ccfsb)  # shape: (Nobs_binned, Norders, Nrv)
@@ -251,6 +252,11 @@ class chromaticRV():
         eccfsb = [sqrt(sum(eccfs[night_indices == i]**2, axis=0)) for i in u]
         eccfsb = np.array(eccfsb)  # shape: (Nobs_binned, Norders, Nrv)
         self.eccfs = eccfsb
+
+        ccf = np.array(self.ccf)  # shape: (Nobs, Nrv)
+        ccfb = [ccf[night_indices == i].mean(axis=0) for i in u]
+        ccfb = np.array(ccfb)  # shape: (Nobs_binned, Nrv)
+        self.ccf = ccfb
 
         rv = self.I[0].rv
         self.indicators = [Indicators(rv, ccf.sum(axis=0)) for ccf in ccfsb]
