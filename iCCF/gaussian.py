@@ -1,5 +1,5 @@
 import warnings
-import numpy as np 
+import numpy as np
 from numpy import exp, log, sqrt, inf
 from scipy import optimize
 
@@ -15,8 +15,8 @@ def _gauss_partial_deriv(x, p):
     A, x0, sig, _ = p
     g = gauss(x, [A, x0, sig, 0.0])
     dgdA = gauss(x, [1.0, x0, sig, 0.0])
-    dgdx0 = g * ((x-x0)/sig**2)
-    dgdsig = g * ((x-x0)**2/sig**3)
+    dgdx0 = g * ((x - x0) / sig**2)
+    dgdsig = g * ((x - x0)**2 / sig**3)
     dgdoffset = np.ones_like(x)
     return np.c_[dgdA, dgdx0, dgdsig, dgdoffset]
 
@@ -44,7 +44,7 @@ def _gauss_initial_guess(x, y):
     return p0
 
 
-def gaussfit(x, y, p0=None, return_errors=False, use_deriv=True):
+def gaussfit(x, y, p0=None, yerr=None, return_errors=False, use_deriv=True):
     """ 
     Fit a Gaussian function to `x`,`y` using least-squares, with initial guess
     `p0` = [A, x0, σ, offset]. If p0 is not provided, the function tries an
@@ -67,29 +67,53 @@ def gaussfit(x, y, p0=None, return_errors=False, use_deriv=True):
     if (y == 0).all():
         return np.nan * np.ones(4)
 
-    f = lambda p, x, y: gauss(x, p) - y
+    if yerr is None:
+        f = lambda p, x, y: gauss(x, p) - y
+    else:
+        f = lambda p, x, y, yerr: ((gauss(x, p) - y) / yerr)
+
     if use_deriv:
-        df = lambda p, x, y: _gauss_partial_deriv(x, p)
+        df = lambda p, x, *_: _gauss_partial_deriv(x, p)
     else:
         df = None
-    
+
     if p0 is None:
         p0 = _gauss_initial_guess(x, y)
-    
-    result = optimize.leastsq(f, p0, args=(x, y), Dfun=df, full_output=True)
-    pfit, pcov, infodict, errmsg, success = result
 
-    pfit[2] = abs(pfit[2]) # positive sigma
+    # if yerr is None:
+    #     args = (x, y)
+    # else:
+    #     args = (x, y, yerr)
+
+    # result = optimize.leastsq(f, p0, args=args, Dfun=df, full_output=True)
+    # pfit, pcov, infodict, errmsg, success = result
+    # # return result
+    # pfit[2] = abs(pfit[2])  # positive sigma
+
+    # if return_errors:
+    #     if yerr is None:
+    #         s_sq = (f(pfit, x, y)**2).sum() / (y.size - pfit.size)
+    #     else:
+    #         s_sq = (f(pfit, x, y, yerr)**2).sum() / (y.size - pfit.size)
+    #     print(s_sq)
+    #     pcov = pcov * s_sq
+    #     errors = np.sqrt(np.diag(pcov))
+    #     return pfit, errors
+    # else:
+    #     return pfit
+
+    f = lambda x, *p: gauss(x, p)
+    if use_deriv:
+        df = lambda x, *p: _gauss_partial_deriv(x, p)
+    else:
+        df = None
+
+    pfit, pcov = optimize.curve_fit(f, x, y, p0=p0, sigma=yerr, jac=df)
 
     if return_errors:
-        s_sq = (f(pfit, x, y)**2).sum() / (y.size - pfit.size)
-        pcov = pcov * s_sq
         errors = np.sqrt(np.diag(pcov))
         return pfit, errors
-    else:
-        return pfit
-    # bounds = ([-inf, -inf, 0, -inf], [inf, inf, inf, inf])
-    # return optimize.curve_fit(f, x, y, p0=p0, bounds=bounds)[0]
+    return pfit
 
 
 def sig2fwhm(sig):
@@ -102,7 +126,7 @@ def fwhm2sig(fwhm):
     return fwhm / (2 * sqrt(2 * log(2)))
 
 
-def RV(rv, ccf, **kwargs):
+def RV(rv, ccf, eccf=None, **kwargs):
     """
     Calculate the radial velocity as the center of a Gaussian fit the CCF.
     
@@ -115,7 +139,7 @@ def RV(rv, ccf, **kwargs):
     kwargs : dict
         Keyword arguments passed directly to gaussfit
     """
-    _, rv, _, _ = gaussfit(rv, ccf, **kwargs)
+    _, rv, _, _ = gaussfit(rv, ccf, yerr=eccf, **kwargs)
     return rv
 
 
@@ -138,7 +162,7 @@ def RVerror(rv, ccf, eccf):
     return 1.0 / sqrt(ccf_sum)
 
 
-def FWHM(rv, ccf):
+def FWHM(rv, ccf, eccf=None, **kwargs):
     """
     Calculate the full width at half maximum (FWHM) of the CCF.
     
@@ -148,9 +172,28 @@ def FWHM(rv, ccf):
         The velocity values where the CCF is defined.
     ccf : array
         The values of the CCF profile.
+    kwargs : dict
+        Keyword arguments passed directly to gaussfit
     """
-    _, _, sig, _ = gaussfit(rv, ccf)
+    _, _, sig, _ = gaussfit(rv, ccf, yerr=eccf, **kwargs)
     return sig2fwhm(sig)
+
+
+def FWHMerror(rv, ccf, eccf):
+    """
+    Calculate the uncertainty on the FWHM, following the same steps as the
+    ESPRESSO DRS pipeline.
+
+    Parameters
+    ----------
+    rv : array
+        The velocity values where the CCF is defined.
+    ccf : array
+        The values of the CCF profile.
+    eccf : array
+        The errors on each value of the CCF profile.
+    """
+    return 2.0 * RVerror(rv, ccf, eccf)
 
 
 def contrast(rv, ccf):

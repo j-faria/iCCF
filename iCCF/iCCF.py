@@ -207,7 +207,7 @@ class Indicators:
     @property
     def RV(self):
         """ The measured radial velocity, from a Gaussian fit to the CCF """
-        return RV(self.rv, self.ccf)
+        return RV(self.rv, self.ccf, self.eccf)
 
     @property
     def RVerror(self):
@@ -267,7 +267,12 @@ class Indicators:
     @property
     def FWHM(self):
         """ The full width at half maximum of the CCF """
-        return FWHMcalc(self.rv, self.ccf)
+        return FWHMcalc(self.rv, self.ccf, self.eccf)
+
+    @property
+    def FWHMerror(self):
+        """ Photon noise uncertainty on the FWHM of the CCF """
+        return 2.0 * self.RVerror
 
     @cached_property
     def BIS(self):
@@ -370,11 +375,15 @@ class Indicators:
         if ax is None:
             _, ax = plt.subplots(constrained_layout=True)
 
-        ax.plot(self.rv, self.ccf, 's-', ms=3, label='observed CCF')
+        if self.eccf is None:
+            ax.plot(self.rv, self.ccf, 's-', ms=3, label='observed CCF')
+        else:
+            ax.errorbar(self.rv, self.ccf, self.eccf, fmt='s-', ms=3,
+                        label='observed CCF')
 
         if show_fit:
             vv = np.linspace(self.rv.min(), self.rv.max(), 1000)
-            pfit = gaussfit(self.rv, self.ccf)
+            pfit = gaussfit(self.rv, self.ccf, yerr=self.eccf)
             ax.plot(vv, gauss(vv, pfit), 'k', label='Gaussian fit')
 
         if show_bisector:
