@@ -667,7 +667,11 @@ def calculate_ccf(s2dfile, mask, rvarray, **kwargs):
     s2dhdu = fits.open(s2dfile)
 
     s2dfile = os.path.basename(s2dfile)
-    ccf_file = s2dfile[:s2dfile.index('_')] + f'_CCF_{mask}_iCCF.fits'
+    end = f'_CCF_{mask}_iCCF.fits'
+    try:
+        ccf_file = s2dfile[:s2dfile.index('_')] + end
+    except ValueError:
+        ccf_file = os.path.splitext(s2dfile)[0] + end
 
     phdr = fits.Header()
     phdr['HIERARCH ESO RV START'] = rvarray[0]
