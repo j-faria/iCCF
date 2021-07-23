@@ -5,22 +5,19 @@ import matplotlib.pyplot as plt
 from astropy.io import fits
 
 import sys, os
+import time as pytime
 import subprocess
 import multiprocessing
 from itertools import product
 from bisect import bisect_left, bisect_right
 from glob import glob
 from scipy.interpolate import interp1d
-try:
-    import tqdm
-    tqdm_available = True
-except ImportError:
-    tqdm_available = False
 
 from .iCCF import Indicators
 from .utils import doppler_shift_wave, get_ncores
 
 import numba
+
 
 def makeCCF(spec_wave, spec_flux, mask_wave=None, mask_contrast=None,
             mask=None, mask_width=0.82, rvmin=None, rvmax=None, drv=None,
@@ -538,7 +535,7 @@ def calculate_s2d_ccf_parallel(s2dfile, rvarray, order='all',
         SSH information in the form "user@host" to look for required 
         calibration files in a server. If the files are not found locally, the
         function tries the `locate` and `scp` commands to find and copy the 
-        file from the SSH host'
+        file from the SSH host
     """
     hdu = fits.open(s2dfile)
     norders, order_len = hdu[1].data.shape
@@ -602,15 +599,17 @@ def calculate_s2d_ccf_parallel(s2dfile, rvarray, order='all',
     kwargs['mask_width'] = mask_width
     # kwargs['verbose'] = verbose
 
+    start = pytime.time()
+    if verbose:
+        print(f'Calculating...', end=' ', flush=True)
+
     pool = multiprocessing.Pool(ncores)
-    if verbose and tqdm_available:
-        ccfs, ccfes, ccfqs = zip(
-            *tqdm.tqdm(pool.imap_unordered(_dowork, product(orders, [kwargs,])),
-            total=len(orders))
-        )
-    else:
-        ccfs, ccfes, ccfqs = zip(*pool.map(_dowork, product(orders, [kwargs,])))
+    ccfs, ccfes, ccfqs = zip(*pool.map(_dowork, product(orders, [kwargs, ])))
     pool.close()
+    end = pytime.time()
+
+    if verbose:
+        print(f'done in {end - start:.2f} seconds')
 
     if return_sum:
         # sum the CCFs over the orders
