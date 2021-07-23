@@ -506,7 +506,7 @@ def _dowork(args, debug=False):
 def calculate_s2d_ccf_parallel(s2dfile, rvarray, order='all',
                                mask_file='ESPRESSO_G2.fits', mask_width=0.5,
                                ncores=None, verbose=True, full_output=False,
-                               ssh=None):
+                               ignore_blaze=True, ssh=None):
     """
     Calculate the CCF between a 2D spectra and a mask. This function can lookup
     necessary files (locally or over SSH) and can perform the calculation in
@@ -531,6 +531,9 @@ def calculate_s2d_ccf_parallel(s2dfile, rvarray, order='all',
     full_output : bool, default False
         Return all the quantities that went into the CCF calculation (some 
         extracted from the S2D file)
+    ignore_blaze : bool, default False
+        If True, the function completely ignores any blaze correction and takes
+        the flux values as is from the S2D file
     ssh : str
         SSH information in the form "user@host" to look for required 
         calibration files in a server. If the files are not found locally, the
@@ -556,9 +559,12 @@ def calculate_s2d_ccf_parallel(s2dfile, rvarray, order='all',
     BERVMAX = hdu[0].header['HIERARCH ESO QC BERVMAX']
 
     ## find and read the blaze file
-    blazefile = hdu[0].header['HIERARCH ESO PRO REC1 CAL12 NAME']
-    blazefile = find_file(blazefile, ssh)
-    blaze = fits.open(blazefile)[1].data
+    if ignore_blaze:
+        blaze = np.ones_like(hdu[1].data)
+    else:
+        blazefile = hdu[0].header['HIERARCH ESO PRO REC1 CAL12 NAME']
+        blazefile = find_file(blazefile, ssh)
+        blaze = fits.open(blazefile)[1].data
 
     ## dll used to be stored in a separate file (?), now it's in the S2D
     # dllfile = hdu[0].header['HIERARCH ESO PRO REC1 CAL16 NAME']
@@ -574,21 +580,24 @@ def calculate_s2d_ccf_parallel(s2dfile, rvarray, order='all',
     ## get the flux correction stored in the S2D file
     keyword = 'HIERARCH ESO QC ORDER%d FLUX CORR'
     flux_corr = np.array(
-        [hdu[0].header[keyword % o] for o in range(1, norders+1)]
+        [hdu[0].header[keyword % o] for o in range(1, norders + 1)]
     )
     ## fit a polynomial and evaluate it at each order's wavelength
     ## orders with flux_corr = 1 are ignored in the polynomial fit
     fit_nb = (flux_corr != 1.0).sum()
     ignore = norders - fit_nb
-    #? see espdr_scince:espdr_correct_flux
+    # see espdr_science:espdr_correct_flux
     poly_deg = round(8 * fit_nb / norders)
-    llc = hdu[5].data[:, order_len//2]
+    llc = hdu[5].data[:, order_len // 2]
     coeff = np.polyfit(llc[ignore:], flux_corr[ignore:], poly_deg - 1)
-    # corr_model = np.zeros_like(hdu[5].data, dtype=np.float32)
+    # corr_model = np.ones_like(hdu[5].data, dtype=np.float32)
     corr_model = np.polyval(coeff, hdu[5].data)
+    if verbose:
+        print('Performing flux correction', end=' ')
+        print(f'(discarding {ignore} orders; polynomial of degree {poly_deg})')
 
     kwargs = {}
-    kwargs['data'] = [None] + [hdu[i].data for i in range(1,6)]
+    kwargs['data'] = [None] + [hdu[i].data for i in range(1, 6)]
     kwargs['dll'] = dll
     kwargs['blaze'] = blaze
     kwargs['corr_model'] = corr_model
