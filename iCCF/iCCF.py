@@ -74,6 +74,8 @@ class Indicators:
 
         self._use_bis_from_HARPS = BIS_HARPS
 
+        self.HDU = None
+
         self._EPS = EPS
         self._nEPS = nEPS
 
@@ -91,7 +93,7 @@ class Indicators:
     @classmethod
     def from_file(cls, file, hdu_number=1, data_index=-1, sort_bjd=True,
                   guess_instrument=True, **kwargs):
-        """ 
+        """
         Create an `Indicators` object from one or more fits files.
         
         Parameters
@@ -110,6 +112,9 @@ class Indicators:
             If True, try to guess the instrument and adjust both hdu_number
             and data_index accordingly
         """
+
+        if isinstance(file, list) and len(file) == 1:
+            file = file[0]
 
         if '*' in file or '?' in file:
             file = glob(file)
