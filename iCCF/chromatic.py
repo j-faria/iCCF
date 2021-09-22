@@ -1,6 +1,7 @@
 import os
 import bisect
 import warnings
+from astropy.timeseries import periodograms
 from pkg_resources import resource_stream
 
 import numpy as np
@@ -272,63 +273,122 @@ class chromaticRV():
         self.I = self.indicators
         self.n = len(self.I)
 
-    def plot(self, periodogram=False):
+    def plot(self, periodogram=False, mask=None, obs=None):
         ncols = 2 if periodogram else 1
 
-        fig, axs = plt.subplots(3 + 1, ncols,) #sharex=False, sharey=False,
-        # constrained_layout=True)
-
+        fig, axs = plt.subplots(3 + 1, ncols, constrained_layout=True)
         axs = axs.ravel()
 
         if periodogram:
             indices_plots = np.arange(0, 8, 2)
+            indices_pers = np.arange(1, 8, 2)
+            for ax in axs[indices_pers[1:]]:
+                ax.sharex(axs[indices_pers[0]])
+                ax.sharey(axs[indices_pers[0]])
         else:
             indices_plots = np.arange(0, 4)
 
-        kw = dict(fmt='o', ms=3)
+        for ax in axs[indices_plots[1:]]:
+            ax.sharex(axs[indices_plots[0]])
+            ax.sharey(axs[indices_plots[0]])
 
-        axs[indices_plots[0]].errorbar(self.time,
-                                       self.fullRV - self.fullRV.mean(),
-                                       self.fullRVerror, color='k', **kw)
+        kw = dict(fmt='o', ms=2)
 
-        axs[indices_plots[1]].errorbar(self.time,
-                                       self.blueRV - self.blueRV.mean(),
-                                       self._blueRVerror, color='b', **kw)
-        axs[indices_plots[2]].errorbar(self.time,
-                                       self.midRV - self.midRV.mean(),
-                                       self._midRVerror, color='g', **kw)
-        axs[indices_plots[3]].errorbar(self.time,
-                                       self.redRV - self.redRV.mean(),
-                                       self._redRVerror, color='r', **kw)
+        if mask is None:
+            mask = np.ones_like(self.time, dtype=bool)
+
+        axs[indices_plots[0]].errorbar(self.time[mask],
+                                       1e3*(self.fullRV[mask] - self.fullRV[mask].mean()),
+                                       self.fullRVerror[mask], color='k', **kw)
+
+        axs[indices_plots[1]].errorbar(self.time[mask],
+                                       1e3*(self.blueRV[mask] - self.blueRV[mask].mean()),
+                                       self._blueRVerror[mask], color='b', **kw)
+        axs[indices_plots[2]].errorbar(self.time[mask],
+                                       1e3*(self.midRV[mask] - self.midRV[mask].mean()),
+                                       self._midRVerror[mask], color='g', **kw)
+        axs[indices_plots[3]].errorbar(self.time[mask],
+                                       1e3*(self.redRV[mask] - self.redRV[mask].mean()),
+                                       self._redRVerror[mask], color='r', **kw)
 
         if periodogram:
-            from astropy.timeseries import LombScargle
+            periods = np.logspace(np.log10(1), np.log10(2 * self.time.ptp()),
+                                  1000)
+            kwfap = dict(alpha=0.2, ls='--')
 
-            model = LombScargle(self.time, self.fullRV, self.fullRVerror)
-            f, p = model.autopower()
-            axs[1].semilogx(1 / f, p, color='k')
-            axs[1].hlines(model.false_alarm_level([0.1, 0.01]),
-                          *axs[1].get_xlim(), alpha=0.2, ls='--')
+            if obs is None:
+                from astropy.timeseries import LombScargle
+                def gls(t, y, e, *args):
+                    model = LombScargle(t, y, e)
+                    return model, model.power(1 / periods)
+            else:
+                from gatspy import periodic
+                def gls(t, y, e, obs):
+                    model = periodic.LombScargleMultiband(Nterms_base=1, Nterms_band=0)
+                    model.fit(t, y, e, filts=obs)
+                    power = model.periodogram(periods)
+                    model.false_alarm_level = lambda x: np.zeros_like(x)
+                    return model, power
 
-            model = LombScargle(self.time, self.blueRV, self._blueRVerror)
-            f, p = model.autopower()
-            axs[3].semilogx(1 / f, p, color='b')
-            axs[3].hlines(model.false_alarm_level([0.1, 0.01]),
-                          *axs[3].get_xlim(), alpha=0.2, ls='--')
+            models = []
 
-            model = LombScargle(self.time, self.midRV, self._midRVerror)
-            f, p = model.autopower()
-            axs[5].semilogx(1 / f, p, color='g')
-            axs[5].hlines(model.false_alarm_level([0.1, 0.01]),
-                          *axs[5].get_xlim(), alpha=0.2, ls='--')
+            model, power = gls(self.time[mask], self.fullRV[mask], self.fullRVerror[mask], obs[mask])
+            models.append(model)
+            axs[1].semilogx(periods, power, color='k')
+            if hasattr(model, 'false_alarm_level'):
+                axs[1].hlines(model.false_alarm_level([0.1, 0.01]),
+                              *axs[1].get_xlim(), **kwfap)
+            if obs is not None:
+                axs[indices_plots[0]].plot(self.time[mask], 1e3*(model.ymean_ - self.fullRV[mask].mean()), ls='--')
 
-            model = LombScargle(self.time, self.redRV, self._redRVerror)
-            f, p = model.autopower()
-            axs[7].semilogx(1 / f, p, color='r')
-            axs[7].hlines(model.false_alarm_level([0.1, 0.01]),
-                          *axs[7].get_xlim(), alpha=0.2, ls='--')
+            model, power = gls(self.time[mask], self.blueRV[mask], self._blueRVerror[mask], obs[mask])
+            models.append(model)
+            axs[3].semilogx(periods, power, color='b')
+            if hasattr(model, 'false_alarm_level'):
+                axs[3].hlines(model.false_alarm_level([0.1, 0.01]),
+                              *axs[1].get_xlim(), **kwfap)
+            if obs is not None:
+                axs[indices_plots[1]].plot(self.time[mask], 1e3*(model.ymean_ - self.blueRV[mask].mean()), ls='--')
 
-        return fig, axs
+            model, power = gls(self.time[mask], self.midRV[mask], self._midRVerror[mask], obs[mask])
+            models.append(model)
+            axs[5].semilogx(periods, power, color='g')
+            if hasattr(model, 'false_alarm_level'):
+                axs[5].hlines(model.false_alarm_level([0.1, 0.01]),
+                              *axs[1].get_xlim(), **kwfap)
+            if obs is not None:
+                axs[indices_plots[2]].plot(self.time[mask], 1e3*(model.ymean_ - self.midRV[mask].mean()), ls='--')
+
+            model, power = gls(self.time[mask], self.redRV[mask], self._redRVerror[mask], obs[mask])
+            models.append(model)
+            axs[7].semilogx(periods, power, color='r')
+            if hasattr(model, 'false_alarm_level'):
+                axs[7].hlines(model.false_alarm_level([0.1, 0.01]),
+                              *axs[1].get_xlim(), **kwfap)
+            if obs is not None:
+                axs[indices_plots[3]].plot(self.time[mask], 1e3*(model.ymean_ - self.redRV[mask].mean()), ls='--')
+
+        for ax in axs[indices_plots]:
+            ax.set_ylabel('RV [m/s]')
+
+        axs[indices_plots[-1]].set_xlabel('Time [BJD]')
+
+        if periodogram:
+            axs[indices_pers[0]].set_xlim((periods.min(), periods.max()))
+            axs[indices_pers[-1]].set_xlabel('Period [days]')
+
+            kw = dict(fontsize=8)
+            axs[indices_pers[0]].set_title('full $\lambda$ range', loc='right', **kw)
+            axs[indices_pers[1]].set_title(f'blue $\lambda={self.bands[0]}$ nm', loc='right', **kw)
+            axs[indices_pers[2]].set_title(f'mid $\lambda={self.bands[1]}$ nm', loc='right', **kw)
+            axs[indices_pers[3]].set_title(f'red $\lambda={self.bands[2]}$ nm', loc='right', **kw)
+
+        for ax in axs[indices_pers]:
+            ax.axvline(5.12, alpha=0.2, color='k', ls='--', zorder=-1)
+            ax.axvline(11.19, alpha=0.2, color='k', ls='--', zorder=-1)
+        axs[indices_pers[0]].set_xlim(0.9, 200)
+
+        return fig, axs, models
 
 
     def plot_ccfs(self, orders=None, show_filenames=False):
@@ -354,7 +414,7 @@ class chromaticRV():
 def each_order_rv(rv, ccfs, exclude_last=True):
     """
     Calculate RVs for each spectral order by fitting Gaussians to individual CCFs
-    
+
     Parameters
     ----------
     rv : array
@@ -421,55 +481,55 @@ def rv_color(rv, ccfs, blue=slice(0,80), red=slice(80,-1), avoid_blue=0, gap=0):
 
 
 
-def chromatic_index(rv, ccfs, wave, rvpipe=None):
-    """ 
-    Calculate the chromatic index, as described in Zechmeister et al. (2018).
+# def chromatic_index(rv, ccfs, wave, rvpipe=None):
+#     """ 
+#     Calculate the chromatic index, as described in Zechmeister et al. (2018).
 
-    Parameters
-    ----------
-    rv : array
-        Radial velocities where each CCF is defined   
-    """
-    if isinstance(wave, str): # assume it's a filename
-        wave = get_wave(wave)
-    elif isinstance(wave, np.ndarray):
-        pass
-    else:
-        raise ValueError('`wave` should be filename or array with wavelengths')
+#     Parameters
+#     ----------
+#     rv : array
+#         Radial velocities where each CCF is defined   
+#     """
+#     if isinstance(wave, str): # assume it's a filename
+#         wave = get_wave(wave)
+#     elif isinstance(wave, np.ndarray):
+#         pass
+#     else:
+#         raise ValueError('`wave` should be filename or array with wavelengths')
 
-    mean_wave = get_orders_mean_wavelength(wave, log=True)
-    rvs = each_order_rv(rv, ccfs)
+#     mean_wave = get_orders_mean_wavelength(wave, log=True)
+#     rvs = each_order_rv(rv, ccfs)
 
-    ind = ~np.isnan(rvs)
-    p = np.polyfit(np.log(mean_wave[ind]), rvs[ind], 1)
+#     ind = ~np.isnan(rvs)
+#     p = np.polyfit(np.log(mean_wave[ind]), rvs[ind], 1)
 
-    if rvpipe is None:
-        rvpipe = gaussfit(rv, ccfs[-1])[1]
+#     if rvpipe is None:
+#         rvpipe = gaussfit(rv, ccfs[-1])[1]
 
-    beta = p[0]
-    lv = np.exp(abs((p[1] - rvpipe)/p[0]))
-    return beta, lv
+#     beta = p[0]
+#     lv = np.exp(abs((p[1] - rvpipe)/p[0]))
+#     return beta, lv
 
 
 
-def chromatic_index_from_files(s2dfile, ccffile):
-    """ 
-    Calculate the chromatic index, as described in Zechmeister et al. (2018).
+# def chromatic_index_from_files(s2dfile, ccffile):
+#     """ 
+#     Calculate the chromatic index, as described in Zechmeister et al. (2018).
 
-    Parameters
-    ----------
-    s2dfile : str
-        Filename of the S2D fits file
-    ccffile : str
-        Filename of the CCF fits file
-    """
-    wave = get_wave(s2dfile)
-    mean_wave = get_orders_mean_wavelength(wave, log=True)
+#     Parameters
+#     ----------
+#     s2dfile : str
+#         Filename of the S2D fits file
+#     ccffile : str
+#         Filename of the CCF fits file
+#     """
+#     wave = get_wave(s2dfile)
+#     mean_wave = get_orders_mean_wavelength(wave, log=True)
 
-    rvpipe = getRV(ccffile)
-    rv = getRVarray(ccffile)
+#     rvpipe = getRV(ccffile)
+#     rv = getRVarray(ccffile)
 
-    ccfs = fits.open(ccffile)[1].data
-    rvs = each_order_rv(rv, ccfs)
+#     ccfs = fits.open(ccffile)[1].data
+#     rvs = each_order_rv(rv, ccfs)
 
-    return chromatic_index(rv, ccfs, wave, rvpipe)
+#     return chromatic_index(rv, ccfs, wave, rvpipe)
