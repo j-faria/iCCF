@@ -11,7 +11,7 @@ from astropy.io import fits
 from cached_property import cached_property
 
 from .iCCF import Indicators
-from .gaussian import gaussfit, RV, RVerror
+from .gaussian import gaussfit, RV, RVerror, FWHM, FWHMerror
 from .keywords import getRV, getRVarray
 from .utils import find_myself
 # from .utils import get_orders_mean_wavelength
@@ -165,7 +165,7 @@ class chromaticRV():
 
 
     def get_rv(self, orders):
-        """ Get radial velocity and uncertainty for specific orders
+        """ Get radial velocity, FWHM and uncertainties for specific orders
 
         orders : int, slice, tuple, array
             The CCFs of these orders will be summed to calculate the RV.
@@ -180,26 +180,32 @@ class chromaticRV():
         elif isinstance(orders, tuple):
             orders = slice(*orders)
 
-        rv = []
-        rve = []
-        has_errors = False
-        for i, full_ccf, full_eccf in zip(self.I, self.ccfs, self.eccfs):
-            ccf = full_ccf[orders].sum(axis=0)
-            rv.append(RV(i.rv, ccf))
+        rv, rve = [], []
+        fwhm, fwhme = [], []
 
+        for i, full_ccf, full_eccf in zip(self.I, self.ccfs, self.eccfs):
+            # create the CCF
+            ccf = full_ccf[orders].sum(axis=0)
             if full_eccf is not None:
                 eccf = np.sqrt(np.square(full_eccf[orders]).sum(axis=0))
-                rve.append(RVerror(i.rv, ccf, eccf))
-                has_errors = True
             else:
-                rve.append(np.nan)
+                eccf = None
+
+            # calculate RV and RV error
+            rv.append(RV(i.rv, ccf, eccf))
+            rve.append(RVerror(i.rv, ccf, eccf))
+            # rve.append(np.nan)
+
+            # calculate FWHM and FWHM error
+            fwhm.append(FWHM(i.rv, ccf))
+            fwhme.append(FWHMerror(i.rv, ccf, eccf))
 
         # if not has_errors:
         #     warnings.warn(
         #         'Cannot access CCF uncertainties to calculate RV error')
         #     return np.array(rv), None
         # else:
-        return np.array(rv), np.array(rve)
+        return map(np.array, (rv, rve, fwhm, fwhme))
 
 
     @property
@@ -216,19 +222,22 @@ class chromaticRV():
     @property
     def blueRV(self):
         if self._blueRV is None:
-            self._blueRV, self._blueRVerror = self.get_rv(self.blue_orders)
+            out = self.get_rv(self.blue_orders)
+            self._blueRV, self._blueRVerror, self._blueFWHM, self._blueFWHMerror = out
         return self._blueRV
 
     @property
     def midRV(self):
         if self._midRV is None:
-            self._midRV, self._midRVerror = self.get_rv(self.mid_orders)
+            out = self.get_rv(self.mid_orders)
+            self._midRV, self._midRVerror, self._midFWHM, self._midFWHMerror = out
         return self._midRV
 
     @property
     def redRV(self):
         if self._redRV is None:
-            self._redRV, self._redRVerror = self.get_rv(self.red_orders)
+            out = self.get_rv(self.red_orders)
+            self._redRV, self._redRVerror, self._redFWHM, self._redFWHMerror = out
         return self._redRV
 
     @property
@@ -332,11 +341,11 @@ class chromaticRV():
 
         fig, ax = plt.subplots(1, 1)  #, constrained_layout=True)
         for i in self.I:
-            line = ax.plot(i.rv, i.ccf[orders].T)
+            line = ax.plot(i.rv, i._SCIDATA[orders].T)
             if show_filenames:
                 color = line[0].get_color()
                 ax.text(i.rv[0], i.ccf[0], i.filename, fontsize=8, color=color)
-        
+
         ax.set(xlabel='RV', ylabel='CCF')
 
 
