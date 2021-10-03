@@ -1,22 +1,20 @@
 """ Calculate CCFs themselves. So meta! """
 
-import numpy as np
-import matplotlib.pyplot as plt
-from astropy.io import fits
-
-import sys, os
-import time as pytime
-import subprocess
 import multiprocessing
-from itertools import product
+import os
+import subprocess
+import sys
+import time as pytime
 from bisect import bisect_left, bisect_right
 from glob import glob
-from scipy.interpolate import interp1d
+from itertools import product
+
+import numba
+import numpy as np
+from astropy.io import fits
 
 from .iCCF import Indicators
 from .utils import doppler_shift_wave, get_ncores
-
-import numba
 
 
 def makeCCF(spec_wave, spec_flux, mask_wave=None, mask_contrast=None,
