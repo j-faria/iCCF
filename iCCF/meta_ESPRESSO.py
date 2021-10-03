@@ -339,7 +339,7 @@ def find_dll(s2dfile):
     else:
         # TODO: what should we do here?
         date = hdu_header['DATE-OBS']
-
+        raise FileNotFoundError("find_dll was not able of finding the file.")
 
 def calculate_s2d_ccf(s2dfile, rvarray, order='all',
                       mask_file='ESPRESSO_G2.fits', mask=None, mask_width=0.5,
