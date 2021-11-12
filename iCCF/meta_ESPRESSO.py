@@ -1,22 +1,20 @@
 """ Calculate CCFs themselves. So meta! """
 
-import numpy as np
-import matplotlib.pyplot as plt
-from astropy.io import fits
-
-import sys, os
-import time as pytime
-import subprocess
 import multiprocessing
-from itertools import product
+import os
+import subprocess
+import sys
+import time as pytime
 from bisect import bisect_left, bisect_right
 from glob import glob
-from scipy.interpolate import interp1d
+from itertools import product
+
+import numba
+import numpy as np
+from astropy.io import fits
 
 from .iCCF import Indicators
 from .utils import doppler_shift_wave, get_ncores
-
-import numba
 
 
 def makeCCF(spec_wave, spec_flux, mask_wave=None, mask_contrast=None,
@@ -330,86 +328,93 @@ def espdr_compute_CCF_fast(ll, dll, flux, error, blaze, quality, RV_table,
 
 
 def find_dll(s2dfile):
-    hdu = fits.open(s2dfile)
-    dllfile = hdu[0].header['HIERARCH ESO PRO REC1 CAL7 NAME']
+    hdu_header = fits.getheader(s2dfile)
+    dllfile = hdu_header['HIERARCH ESO PRO REC1 CAL7 NAME']
     if os.path.exists(dllfile):
         return dllfile
     elif len(glob(dllfile + '*')) > 1:
         return glob(dllfile + '*')[0]
     else:
-        date = hdu[0].header['DATE-OBS']
-
+        # TODO: what should we do here?
+        date = hdu_header['DATE-OBS']
+        raise FileNotFoundError("find_dll was not able of finding the file.")
 
 def calculate_s2d_ccf(s2dfile, rvarray, order='all',
                       mask_file='ESPRESSO_G2.fits', mask=None, mask_width=0.5,
                       debug=False):
 
-    hdu = fits.open(s2dfile)
+    with fits.open(s2dfile) as hdu:
 
-    if order == 'all':
-        if debug:
-            print('can only debug one order at a time...')
-            return
-        orders = range(hdu[1].data.shape[0])
-        return_sum = True
-    else:
-        assert isinstance(order, int), 'order should be integer'
-        orders = (order, )
-        return_sum = False
+        if order == 'all':
+            if debug:
+                print('can only debug one order at a time...')
+                return
+            orders = range(hdu[1].data.shape[0])
+            return_sum = True
+        else:
+            assert isinstance(order, int), 'order should be integer'
+            orders = (order, )
+            return_sum = False
 
-    BERV = hdu[0].header['HIERARCH ESO QC BERV']
-    BERVMAX = hdu[0].header['HIERARCH ESO QC BERVMAX']
+        BERV = hdu[0].header['HIERARCH ESO QC BERV']
+        BERVMAX = hdu[0].header['HIERARCH ESO QC BERVMAX']
 
-    dllfile = hdu[0].header['HIERARCH ESO PRO REC1 CAL7 NAME']
-    blazefile = hdu[0].header['HIERARCH ESO PRO REC1 CAL13 NAME']
-    print('need', dllfile)
-    print('need', blazefile)
+        dllfile = hdu[0].header['HIERARCH ESO PRO REC1 CAL7 NAME']
+        blazefile = hdu[0].header['HIERARCH ESO PRO REC1 CAL13 NAME']
+        print('need', dllfile)
+        print('need', blazefile)
 
-    dllfile = glob(dllfile + '*')[0]
+        dllfile = glob(dllfile + '*')[0]
 
-    # CCF mask
-    if mask is None:
-        mask = fits.open(mask_file)[1].data
-    else:
-        assert 'lambda' in mask, 'mask must contain the "lambda" key'
-        assert 'contrast' in mask, 'mask must contain the "contrast" key'
+        # CCF mask
+        if mask is None:
+            with fits.open(mask_file) as mask_hdu:
+                mask = mask_hdu[1].data
+        else:
+            assert 'lambda' in mask, 'mask must contain the "lambda" key'
+            assert 'contrast' in mask, 'mask must contain the "contrast" key'
 
-    # get the flux correction stored in the S2D file
-    keyword = 'HIERARCH ESO QC ORDER%d FLUX CORR'
-    flux_corr = [hdu[0].header[keyword % (o + 1)] for o in range(170)]
+        # get the flux correction stored in the S2D file
+        keyword = 'HIERARCH ESO QC ORDER%d FLUX CORR'
+        flux_corr = [hdu[0].header[keyword % (o + 1)] for o in range(170)]
 
-    ccfs, ccfes = [], []
-    for order in orders:
-        # WAVEDATA_AIR_BARY
-        ll = hdu[5].data[order, :]
-        # mean w
-        llc = np.mean(hdu[5].data, axis=1)
+        ccfs, ccfes = [], []
 
-        dll = fits.open(dllfile)[1].data[order, :]
-        # dll = doppler_shift_wave(dll, -BERV, f=1.+1.55e-8)
+        with fits.open(dllfile) as hdu_dll:
+            dll_array = hdu_dll[1].data
 
-        # fit an 8th degree polynomial to the flux correction
-        corr_model = np.polyval(np.polyfit(llc, flux_corr, 7), llc)
+        with fits.open(blazefile) as hdu_blaze:
+            blaze_array = hdu_blaze[1].data
 
-        flux = hdu[1].data[order, :]
-        error = hdu[2].data[order, :]
-        quality = hdu[3].data[order, :]
+        for order in orders:
+            # WAVEDATA_AIR_BARY
+            ll = hdu[5].data[order, :]
+            # mean w
+            llc = np.mean(hdu[5].data, axis=1)
 
-        blaze = fits.open(blazefile)[1].data[order, :]
+            dll = dll_array[order, :]
+            # fit an 8th degree polynomial to the flux correction
+            corr_model = np.polyval(np.polyfit(llc, flux_corr, 7), llc)
 
-        y = flux * blaze / corr_model[order]
-        # y = np.loadtxt('flux_in_pipeline_order0.txt')
-        ye = error * blaze / corr_model[order]
+            flux = hdu[1].data[order, :]
+            error = hdu[2].data[order, :]
+            quality = hdu[3].data[order, :]
 
-        if debug:
-            return ll, dll, y, ye, blaze, quality, rvarray, mask, BERV, BERVMAX
+            blaze = blaze_array[order, :]
 
-        print('calculating ccf (order %d)...' % order)
-        ccf, ccfe, _ = espdr_compute_CCF_fast(ll, dll, y, ye, blaze, quality,
-                                              rvarray, mask, BERV, BERVMAX,
-                                              mask_width=mask_width)
-        ccfs.append(ccf)
-        ccfes.append(ccfe)
+            y = flux * blaze / corr_model[order]
+            # y = np.loadtxt('flux_in_pipeline_order0.txt')
+            ye = error * blaze / corr_model[order]
+
+            if debug:
+                return ll, dll, y, ye, blaze, quality, rvarray, mask, BERV, BERVMAX
+
+            print('calculating ccf (order %d)...' % order)
+            ccf, ccfe, _ = espdr_compute_CCF_fast(ll, dll, y, ye, blaze, quality,
+                                                rvarray, mask, BERV, BERVMAX,
+                                                mask_width=mask_width)
+            ccfs.append(ccf)
+            ccfes.append(ccfe)
 
     if return_sum:
         ccf = np.concatenate([ccfs, np.array(ccfs).sum(axis=0, keepdims=True)])
@@ -564,7 +569,9 @@ def calculate_s2d_ccf_parallel(s2dfile, rvarray, order='all',
     else:
         blazefile = hdu[0].header['HIERARCH ESO PRO REC1 CAL12 NAME']
         blazefile = find_file(blazefile, ssh)
-        blaze = fits.open(blazefile)[1].data
+
+        with fits.open(blazefile) as hdu_blaze:
+            blaze = hdu_blaze[1].data
 
     ## dll used to be stored in a separate file (?), now it's in the S2D
     # dllfile = hdu[0].header['HIERARCH ESO PRO REC1 CAL16 NAME']
@@ -572,10 +579,10 @@ def calculate_s2d_ccf_parallel(s2dfile, rvarray, order='all',
     # dll = fits.open(dllfile)[1].data.astype(np.float64)
     dll = hdu[7].data
 
-
     ## CCF mask
     mask_file = find_file(mask_file, ssh)
-    mask = fits.open(mask_file)[1].data
+    with fits.open(mask_file) as hdu_mask:
+        mask = hdu_mask[1].data
 
     ## get the flux correction stored in the S2D file
     keyword = 'HIERARCH ESO QC ORDER%d FLUX CORR'
@@ -672,7 +679,8 @@ def calculate_ccf(s2dfile, mask, rvarray, **kwargs):
     ccfq = ccfq.astype(np.int32)
 
     # read original S2D file
-    s2dhdu = fits.open(s2dfile)
+    s2dhdu_header = fits.getheader(s2dfile)
+    BJD = s2dhdu_header['ESO QC BJD']
 
     s2dfile = os.path.basename(s2dfile)
     end = f'_CCF_{mask}_iCCF.fits'
@@ -684,7 +692,7 @@ def calculate_ccf(s2dfile, mask, rvarray, **kwargs):
     phdr = fits.Header()
     phdr['HIERARCH ESO RV START'] = rvarray[0]
     phdr['HIERARCH ESO RV STEP'] = np.ediff1d(rvarray)[0]
-    phdr['HIERARCH ESO QC BJD'] = s2dhdu[0].header['ESO QC BJD']
+    phdr['HIERARCH ESO QC BJD'] = BJD
     phdr['HIERARCH ESO QC BERV'] = kw['BERV']
     phdr['HIERARCH ESO QC BERVMAX'] = kw['BERVMAX']
     phdr['HIERARCH ESO QC CCF MASK'] = mask
