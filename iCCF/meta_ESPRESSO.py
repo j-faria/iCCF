@@ -666,30 +666,110 @@ def calculate_s2d_ccf_parallel(s2dfile, rvarray, order='all',
             return np.array(ccfs), np.array(ccfes), np.array(ccfqs)
 
 
-def calculate_ccf(s2dfile, mask, rvarray, **kwargs):
+def calculate_s1d_ccf_parallel(s1dfile, rvarray, mask_file='ESPRESSO_G2.fits',
+                               mask_width=0.5, ncores=None, verbose=True,
+                               full_output=False, ignore_blaze=True,
+                               skip_flux_corr=False, ssh=None):
     """
-    A wrapper for `calculate_s2d_ccf_parallel` which also saves the resulting
-    CCF in a fits file. Mostly meant for the iccf-make-ccf script.
+    docs
+    """
+
+    hdu = fits.open(s1dfile)
+
+    # if ncores is None:
+    #     ncores = get_ncores()
+    ncores = 1  # TODO: make computation parallel for S1D
+    print(f'Using {ncores} CPU cores for the calculation')
+
+    BERV = hdu[0].header['HIERARCH ESO QC BERV']
+    BERVMAX = hdu[0].header['HIERARCH ESO QC BERVMAX']
+
+    wave = hdu[1].data.wavelength.astype(np.float64)
+    wave_air = hdu[1].data.wavelength_air.astype(np.float64)
+    flux = hdu[1].data.flux.astype(np.float64)
+    error = hdu[1].data.error.astype(np.float64)
+    qual = hdu[1].data.quality.astype(int)
+    blaze = np.ones_like(wave, dtype=np.float64)
+
+    #? not sure here
+    dll = np.diff(wave_air)
+    dll = np.r_[dll, dll[-1]]
+
+    ## CCF mask
+    mask_file = find_file(mask_file, ssh, verbose)
+    mask = fits.open(mask_file)[1].data
+    mask_wave = mask['lambda'].astype(np.float64)
+    mask_contrast = mask['contrast'].astype(np.float64)
+    # mask_mask = np.ones_like(mask_wave, dtype=bool)
+    # # apparently it's not sorted... ?!
+    # s = np.argsort(mask_wave)
+    # mask_wave = mask_wave[s]
+    # mask_contrast = mask_contrast[s]
+
+    ccf, ccfe, ccfq = espdr_compute_CCF_numba_fast(wave_air, dll, flux, error,
+                                                   blaze, qual, rvarray,
+                                                   mask_wave, mask_contrast,
+                                                   BERV, BERVMAX,
+                                                   mask_width=mask_width)
+    # ccf, ccfe, ccfq = espdr_compute_CCF_fast(
+    #     wave_air, dll, flux, error, blaze, qual, rvarray,
+    #     mask, BERV, BERVMAX, mask_width=mask_width)
+
+    kw = None
+    return ccf, ccfe, ccfq, kw
+
+
+
+
+def calculate_ccf(filename, mask, rvarray, s1d=False, **kwargs):
+    """
+    A wrapper for the `calculate_*_ccf_parallel` functions which also saves the
+    resulting CCF in a fits file. Mostly meant for the iccf-make-ccf script.
 
     Parameters
     ----------
-    s2dfile : str
+    filename : str
         The name of the S2D file
     mask : str
         The identifier for the CCF mask to use. A file 'ESPRESSO_mask.fits'
         should exist (not necessarily in the current directory)
     rvarray : array
         RV array where to calculate the CCF
+    s1d : bool, default False
+        Is it an S1D file? By default, assume it's an S2D.
+    ignore_blaze : bool, default True
+        If True, the function completely ignores any blaze correction and takes
+        the flux values as is from the S2D file
+    clobber : bool, default True
+        Whether to replace output CCF file even if it exists
+    verbose : bool, default True
+        Print status messages and progress bar
     **kwargs
         Keyword arguments passed directly to `calculate_s2d_ccf_parallel`
     """
 
+    filename = os.path.basename(filename)
+    end = f'_CCF_{mask}_iCCF.fits'
+    try:
+        ccf_file = filename[:filename.index('_')] + end
+    except ValueError:
+        ccf_file = os.path.splitext(filename)[0] + end
+
+    clobber = kwargs.pop('clobber', True)
+    if os.path.exists(ccf_file) and not clobber:
+        if kwargs.get('verbose', True):
+            print(f'Output CCF file ({ccf_file}) exists')
+        return ccf_file
+
     mask_file = f"ESPRESSO_{mask}.fits"
     kwargs['mask_file'] = mask_file
 
-    ccf, ccfe, ccfq, kw = calculate_s2d_ccf_parallel(s2dfile, rvarray,
-                                                     full_output=True,
-                                                     **kwargs)
+    if s1d or 'S1D' in filename:
+        ccf, ccfe, ccfq, kw = calculate_s1d_ccf_parallel(
+            filename, rvarray, full_output=True, **kwargs)
+    else:
+        ccf, ccfe, ccfq, kw = calculate_s2d_ccf_parallel(
+            filename, rvarray, order='all', full_output=True, **kwargs)
 
     # in the pipeline, data are saved as floats
     ccf = ccf.astype(np.float32)
@@ -697,16 +777,11 @@ def calculate_ccf(s2dfile, mask, rvarray, **kwargs):
     ccfq = ccfq.astype(np.int32)
 
     # read original S2D file
-    s2dhdu = fits.open(s2dfile)
+    s2dhdu = fits.open(filename)
 
-    s2dfile = os.path.basename(s2dfile)
-    end = f'_CCF_{mask}_iCCF.fits'
-    try:
-        ccf_file = s2dfile[:s2dfile.index('_')] + end
-    except ValueError:
-        ccf_file = os.path.splitext(s2dfile)[0] + end
 
     phdr = fits.Header()
+    phdr['OBJECT'] = s2dhdu[0].header['OBJECT']
     phdr['HIERARCH ESO RV START'] = rvarray[0]
     phdr['HIERARCH ESO RV STEP'] = np.ediff1d(rvarray)[0]
     phdr['HIERARCH ESO QC BJD'] = s2dhdu[0].header['ESO QC BJD']
@@ -724,10 +799,10 @@ def calculate_ccf(s2dfile, mask, rvarray, **kwargs):
     phdr['HIERARCH ESO QC CCF RV'] = I.RV
     phdr['HIERARCH ESO QC CCF RV ERROR'] = I.RVerror
     phdr['HIERARCH ESO QC CCF FWHM'] = I.FWHM
-    # phdr['HIERARCH ESO QC CCF FWHM ERROR'] = I.FWHMerror # TODO
+    phdr['HIERARCH ESO QC CCF FWHM ERROR'] = I.FWHMerror
     phdr['HIERARCH ESO QC CCF CONTRAST'] = I.contrast
-    # phdr['HIERARCH ESO QC CCF CONTRAST ERROR'] = I.contrasterror # TODO
-    # 'ESO QC CCF FLUX ASYMMETRY' # TODO
+    # # phdr['HIERARCH ESO QC CCF CONTRAST ERROR'] = I.contrasterror # TODO
+    # # 'ESO QC CCF FLUX ASYMMETRY' # TODO
 
     phdu = fits.PrimaryHDU(header=phdr)
 
@@ -748,7 +823,8 @@ def calculate_ccf(s2dfile, mask, rvarray, **kwargs):
 
 
     hdul = fits.HDUList([phdu, hdu1, hdu2, hdu3])
-    print('Output to:', ccf_file)
+    if kwargs.get('verbose', True):
+        print('Output to:', ccf_file)
     hdul.writeto(ccf_file, overwrite=True, checksum=True)
 
     return ccf_file
