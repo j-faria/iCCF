@@ -13,6 +13,8 @@ from bisect import bisect_left, bisect_right
 from glob import glob
 from scipy.interpolate import interp1d
 
+from tqdm import tqdm, trange
+
 from .iCCF import Indicators
 from .utils import doppler_shift_wave, get_ncores
 
@@ -83,8 +85,8 @@ def makeCCF(spec_wave, spec_flux, mask_wave=None, mask_contrast=None,
                 "Provide the mask wavelengths in `mask_contrast`.")
 
         mask = np.c_[doppler_shift_wave(mask_wave, -mask_width / 2),
-                     doppler_shift_wave(mask_wave, mask_width /
-                                        2), mask_contrast]
+                     doppler_shift_wave(mask_wave, mask_width / 2),
+                     mask_contrast]
 
     ccfarray = np.zeros_like(rvarray)
     for i, RV in enumerate(rvarray):
@@ -95,8 +97,7 @@ def makeCCF(spec_wave, spec_flux, mask_wave=None, mask_contrast=None,
         mask_rv_shifted[:, :2] = doppler_shift_wave(mask[:, :2], RV)
 
         # region of intersection between the RV-shifted mask and the spectrum
-        region = (spec_wave[0] < mask_rv_shifted[:, 0]) & (
-            mask_rv_shifted[:, 1] < spec_wave[-1])
+        region = (spec_wave[0] < mask_rv_shifted[:, 0]) & (mask_rv_shifted[:, 1] < spec_wave[-1])
         mask_rv_shifted = mask_rv_shifted[region]
 
         # for every line in the mask
@@ -117,12 +118,9 @@ def makeCCF(spec_wave, spec_flux, mask_wave=None, mask_contrast=None,
             lineFractionEnd = 1 - abs(
                 mask_line_end - spec_wave[linePixelEnd]) / wave_resolution
 
-            CCF += mask_line_depth * np.sum(
-                spec_flux[linePixelIni:linePixelEnd])
-            CCF += mask_line_depth * lineFractionIni * spec_flux[linePixelIni -
-                                                                 1]
-            CCF += mask_line_depth * lineFractionEnd * spec_flux[linePixelEnd +
-                                                                 1]
+            CCF += mask_line_depth * np.sum(spec_flux[linePixelIni:linePixelEnd])
+            CCF += mask_line_depth * lineFractionIni * spec_flux[linePixelIni - 1]
+            CCF += mask_line_depth * lineFractionEnd * spec_flux[linePixelEnd + 1]
             nlines += 1
 
         ccfarray[i] = CCF
@@ -131,9 +129,9 @@ def makeCCF(spec_wave, spec_flux, mask_wave=None, mask_contrast=None,
 
 
 @numba.njit
-def espdr_compute_CCF_numba_fast(ll, dll, flux, error, blaze, quality, RV_table,
-                                 mask_wave, mask_contrast, berv, bervmax,
-                                 mask_width=0.5):
+def espdr_compute_CCF_numba_fast(ll, dll, flux, error, blaze, quality,
+                                 RV_table, mask_wave, mask_contrast, berv,
+                                 bervmax, mask_width=0.5):
     c = 299792.458
 
     nx_s2d = flux.size
@@ -149,9 +147,12 @@ def espdr_compute_CCF_numba_fast(ll, dll, flux, error, blaze, quality, RV_table,
     ll2 = ll - dll2  # cpl_image_subtract_create(ll,dll2);
 
     #? this mimics the pipeline (note that cpl_image_get indexes starting at 1)
-    imin = 1; imax = nx_s2d
-    while(imin < nx_s2d and quality[imin-1] != 0): imin += 1
-    while(imax > 1 and quality[imax-1] != 0): imax -= 1
+    imin = 1
+    imax = nx_s2d
+    while (imin < nx_s2d and quality[imin - 1] != 0):
+        imin += 1
+    while (imax > 1 and quality[imax - 1] != 0):
+        imax -= 1
     # my tests to speed things up
     # imin = np.where(quality == 0)[0][0]
     # imax = len(quality) - np.where(quality[::-1] == 0)[0][0] - 1
@@ -277,14 +278,14 @@ def espdr_compute_CCF_fast(ll, dll, flux, error, blaze, quality, RV_table,
     # print(imin, imax)
 
     # for (i = imin; i <= imax; i++)
-    for i in range(imin, imax + 1):
+    for i in trange(imin, imax + 1):
         #? cpl_array_get also indexes starting at 0
         llcenter = mask['lambda'][i] * (1. + RV_table[nx_ccf // 2] / c)
 
         # index_center = 1
         # while(ll[index_center-1] < llcenter): index_center += 1
         # my attempt to speed it up
-        index_center = np.where(ll < llcenter)[0][-1] +1
+        index_center = np.where(ll < llcenter)[0][-1] + 1
 
         contrast = mask['contrast'][i]
         w = contrast * contrast
@@ -420,17 +421,21 @@ def calculate_s2d_ccf(s2dfile, rvarray, order='all',
         return np.array(ccfs), np.array(ccfes)
 
 
-def find_file(file, ssh=None):
-    print('Looking for file:', file)
+def find_file(file, ssh=None, verbose=True):
+    if verbose:
+        print('Looking for file:', file)
+
     # first try here:
     if os.path.exists(file) or os.path.exists(file + '.fits'):
-        print('\tfound it in current directory')
+        if verbose:
+            print('\tfound it in current directory')
         return glob(file + '*')[0]
 
     similar = glob(file + '*.fits')
     if len(similar) > 0:
         file = similar[0]
-        print(f'\tfound a similar file in current directory ({file})')
+        if verbose:
+            print(f'\tfound a similar file in current directory ({file})')
         return file
 
 
@@ -438,7 +443,8 @@ def find_file(file, ssh=None):
     try:
         found = subprocess.check_output(f'locate {file}'.split())
         found = found.decode().split()
-        print('\tfound file:', found[-1])
+        if verbose:
+            print('\tfound file:', found[-1])
         return found[-1]
     except subprocess.CalledProcessError:
         if ssh is None:
@@ -453,7 +459,8 @@ def find_file(file, ssh=None):
         try:
             found = subprocess.check_output(locate_cmd.split())
             found = found.decode().split()
-            print('\tfound file:', ssh + ':' + found[-1])
+            if verbose:
+                print('\tfound file:', ssh + ':' + found[-1])
         except subprocess.CalledProcessError:
             raise FileNotFoundError(file) from None
 
@@ -506,7 +513,8 @@ def _dowork(args, debug=False):
 def calculate_s2d_ccf_parallel(s2dfile, rvarray, order='all',
                                mask_file='ESPRESSO_G2.fits', mask_width=0.5,
                                ncores=None, verbose=True, full_output=False,
-                               ignore_blaze=True, ssh=None):
+                               ignore_blaze=True, skip_flux_corr=False,
+                               ssh=None):
     """
     Calculate the CCF between a 2D spectra and a mask. This function can lookup
     necessary files (locally or over SSH) and can perform the calculation in
@@ -527,74 +535,91 @@ def calculate_s2d_ccf_parallel(s2dfile, rvarray, order='all',
     ncores : int
         Number of CPU cores to use for the calculation (default: all available)
     verbose : bool, default True
-        Print messages and a progress bar during the calcualtion
+        Print messages and a progress bar during the calculation
     full_output : bool, default False
         Return all the quantities that went into the CCF calculation (some 
         extracted from the S2D file)
-    ignore_blaze : bool, default False
+    ignore_blaze : bool, default True
         If True, the function completely ignores any blaze correction and takes
         the flux values as is from the S2D file
+    skip_flux_corr : bool, default False
+        If True, skip the flux correction step
     ssh : str
-        SSH information in the form "user@host" to look for required 
-        calibration files in a server. If the files are not found locally, the
-        function tries the `locate` and `scp` commands to find and copy the 
-        file from the SSH host
+        SSH information in the form "user@host" to look for required calibration
+        files in a server. If the files are not found locally, the function
+        tries the `locate` and `scp` commands to find and copy the file from the
+        SSH host
     """
     hdu = fits.open(s2dfile)
     norders, order_len = hdu[1].data.shape
 
     if ncores is None:
         ncores = get_ncores()
-    print(f'Using {ncores} CPU cores for the calculation')
+
+    if verbose:
+        print(f'Using {ncores} CPU cores for the calculation')
 
     if order == 'all':
         orders = range(hdu[1].data.shape[0])
         return_sum = True
+        if verbose:
+            pass
     else:
         assert isinstance(order, int), 'order should be integer'
         orders = (order, )
         return_sum = False
+        if verbose:
+            pass
 
     BERV = hdu[0].header['HIERARCH ESO QC BERV']
     BERVMAX = hdu[0].header['HIERARCH ESO QC BERVMAX']
 
-    ## find and read the blaze file
+    # find and read the blaze file
     if ignore_blaze:
+        if verbose:
+            print('Ignoring the blaze (i.e. assuming the S2D is de-blazed)')
         blaze = np.ones_like(hdu[1].data)
     else:
+        if verbose:
+            print('De-blazing (i.e. assuming the S2D is *not* de-blazed)')
         blazefile = hdu[0].header['HIERARCH ESO PRO REC1 CAL12 NAME']
-        blazefile = find_file(blazefile, ssh)
+        blazefile = find_file(blazefile, ssh, verbose)
         blaze = fits.open(blazefile)[1].data
 
-    ## dll used to be stored in a separate file (?), now it's in the S2D
-    # dllfile = hdu[0].header['HIERARCH ESO PRO REC1 CAL16 NAME']
+    # dll used to be stored in a separate file (?), now it's in the S2D
+    # dllfile = hdu[0].header['HIERARCH ESO PRO REC1 CAL8 NAME']
     # dllfile = find_file(dllfile, ssh)
-    # dll = fits.open(dllfile)[1].data.astype(np.float64)
+    # dll = fits.open(dllfile)[1].data #.astype(np.float64)
     dll = hdu[7].data
 
 
     ## CCF mask
-    mask_file = find_file(mask_file, ssh)
+    mask_file = find_file(mask_file, ssh, verbose)
     mask = fits.open(mask_file)[1].data
 
-    ## get the flux correction stored in the S2D file
-    keyword = 'HIERARCH ESO QC ORDER%d FLUX CORR'
-    flux_corr = np.array(
-        [hdu[0].header[keyword % o] for o in range(1, norders + 1)]
-    )
-    ## fit a polynomial and evaluate it at each order's wavelength
-    ## orders with flux_corr = 1 are ignored in the polynomial fit
-    fit_nb = (flux_corr != 1.0).sum()
-    ignore = norders - fit_nb
-    # see espdr_science:espdr_correct_flux
-    poly_deg = round(8 * fit_nb / norders)
-    llc = hdu[5].data[:, order_len // 2]
-    coeff = np.polyfit(llc[ignore:], flux_corr[ignore:], poly_deg - 1)
-    # corr_model = np.ones_like(hdu[5].data, dtype=np.float32)
-    corr_model = np.polyval(coeff, hdu[5].data)
-    if verbose:
-        print('Performing flux correction', end=' ')
-        print(f'(discarding {ignore} orders; polynomial of degree {poly_deg})')
+    if skip_flux_corr:
+        if verbose:
+            print('No flux correction performed')
+        corr_model = np.ones(norders)
+    else:
+        # get the flux correction stored in the S2D file
+        keyword = 'HIERARCH ESO QC ORDER%d FLUX CORR'
+        flux_corr = np.array(
+            [hdu[0].header[keyword % o] for o in range(1, norders + 1)])
+        # fit a polynomial and evaluate it at each order's wavelength
+        # orders with flux_corr = 1 are ignored in the polynomial fit
+        fit_nb = (flux_corr != 1.0).sum()
+        ignore = norders - fit_nb
+        # see espdr_science.c : espdr_correct_flux
+        poly_deg = round(8 * fit_nb / norders)
+        llc = hdu[5].data[:, order_len // 2]
+        coeff = np.polyfit(llc[ignore:], flux_corr[ignore:], poly_deg - 1)
+        # corr_model = np.ones_like(hdu[5].data, dtype=np.float32)
+        corr_model = np.polyval(coeff, hdu[5].data)
+        if verbose:
+            print('Performing flux correction', end=' ')
+            print(f'(discarding {ignore} orders; '
+                  f'polynomial of degree {poly_deg})')
 
     kwargs = {}
     kwargs['data'] = [None] + [hdu[i].data for i in range(1, 6)]
@@ -610,7 +635,7 @@ def calculate_s2d_ccf_parallel(s2dfile, rvarray, order='all',
 
     start = pytime.time()
     if verbose:
-        print(f'Calculating...', end=' ', flush=True)
+        print('Calculating...', end=' ', flush=True)
 
     pool = multiprocessing.Pool(ncores)
     ccfs, ccfes, ccfqs = zip(*pool.map(_dowork, product(orders, [kwargs, ])))
