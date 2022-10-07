@@ -33,6 +33,7 @@ setup(
         'console_scripts': [
             'iccf-fits-to-rdb = iCCF.scripts:fits_to_rdb',
             'iccf-make-ccf = iCCF.scripts:make_CCF',
+            'iccf-compare = iCCF.scripts:compare_ccfs',
         ]
     },
     packages=find_packages(),
@@ -42,7 +43,9 @@ setup(
     include_package_data=True,
     zip_safe=False,
     install_requires=[
-        'numpy', 'scipy', 'matplotlib', 'astropy', 'cached_property',
-        'paramiko', 'numba==0.53',
+        'astropy',
+        'cached_property',
+        'paramiko',
+        'tqdm',
     ],
 )
