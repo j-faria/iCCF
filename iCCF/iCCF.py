@@ -3,13 +3,17 @@ from collections.abc import Iterable
 import numpy as np
 import matplotlib.pyplot as plt
 from os.path import basename
-from copy import copy
 from glob import glob
 import math
 import warnings
 
 from astropy.io import fits
 from cached_property import cached_property
+
+try:
+    from tqdm import tqdm
+except ImportError:
+    tqdm = lambda x: x
 
 from .gaussian import gauss, gaussfit, FWHM as FWHMcalc, RV, RVerror, contrast
 from .bisector import BIS, BIS_HARPS as BIS_HARPS_calc, bisector
@@ -95,7 +99,7 @@ class Indicators:
                   guess_instrument=True, **kwargs):
         """
         Create an `Indicators` object from one or more fits files.
-        
+
         Parameters
         ----------
         file : str or list of str
@@ -122,10 +126,14 @@ class Indicators:
         # list of files
         if isinstance(file, Iterable) and not isinstance(file, str):
             indicators = []
-            for f in file:
-                indicators.append(
-                    cls.from_file(f, hdu_number, data_index, sort_bjd,
-                                  guess_instrument, **kwargs))
+            for f in tqdm(file):
+                try:
+                    indicators.append(
+                        cls.from_file(f, hdu_number, data_index, sort_bjd,
+                                      guess_instrument, **kwargs))
+                except Exception as e:
+                    print(f'ERROR reading "{f}"')
+                    print(e)
 
             if sort_bjd:
                 return sorted(indicators, key=lambda i: i.bjd)
@@ -225,7 +233,7 @@ class Indicators:
             try:
                 eccf = self._ERRDATA[-1, :]  # for ESPRESSO
             except Exception:
-                warnings.warn('Cannot access CCF uncertainties, looking for value in header')
+                # warnings.warn('Cannot access CCF uncertainties, looking for value in header')
                 try:
                     rve = getRVerror(None, hdul=self.HDU)
                     return rve
@@ -307,8 +315,8 @@ class Indicators:
 
     @property
     def pipeline_RV(self):
-        """ 
-        The radial velocity as derived by the pipeline and stored in CCF fits 
+        """
+        The radial velocity as derived by the pipeline and stored in CCF fits
         file
         """
         if not hasattr(self, 'HDU'):
@@ -318,7 +326,7 @@ class Indicators:
 
     @property
     def pipeline_FWHM(self):
-        """ 
+        """
         The FWHM as derived by the pipeline and stored in CCF fits file
         """
         if not hasattr(self, 'HDU'):
@@ -369,6 +377,10 @@ class Indicators:
 
         return True  # all checks passed!
 
+    @property
+    def zero_ccfs(self):
+        self._SCIDATA
+
     def to_dict(self):
         return writers.to_dict(self)
 
@@ -380,16 +392,17 @@ class Indicators:
         if ax is None:
             _, ax = plt.subplots(constrained_layout=True)
 
+        label = self.filename
         if self.eccf is None:
-            ax.plot(self.rv, self.ccf, 's-', ms=3, label='observed CCF')
+            ax.plot(self.rv, self.ccf, 's-', ms=3, label=label)
         else:
             ax.errorbar(self.rv, self.ccf, self.eccf, fmt='s-', ms=3,
-                        label='observed CCF')
+                        label=label)
 
         if show_fit:
             vv = np.linspace(self.rv.min(), self.rv.max(), 1000)
             pfit = gaussfit(self.rv, self.ccf, yerr=self.eccf)
-            ax.plot(vv, gauss(vv, pfit), 'k', label='Gaussian fit')
+            ax.plot(vv, gauss(vv, pfit), label='Gaussian fit')
 
         if show_bisector:
             out = BIS(self.rv, self.ccf, full_output=True)
@@ -400,11 +413,11 @@ class Indicators:
             top_limit = out[-4][1]
             bot_limit = out[-5][0]
             yy = np.linspace(bot_limit, top_limit, 100)
-            ax.plot(bisf(yy), yy, 'k')
+            ax.plot(bisf(yy), yy)
 
         ax.legend()
         ax.set(xlabel='RV [km/s]', ylabel='CCF')
-        plt.show()
+        return ax.figure, ax
 
     def plot_individual_RV(self, ax=None):
         """ Plot the RV for individual orders """
