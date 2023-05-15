@@ -25,8 +25,10 @@ def _gauss_initial_guess(x, y):
     """ Educated guess (from the data) for Gaussian parameters. """
     # these guesses tend to work better for narrow-ish gaussians
     p0 = []
-    # guess the amplitude
-    p0.append(y.ptp())
+
+    # guess the amplitude (force it to be negative)
+    p0.append(-abs(y.ptp()))
+
     # guess the center, but maybe the CCF is upside down?
     m = y.mean()
     ups_down = np.sign(np.percentile(y, 50) - m) != np.sign(y.max() - m)
@@ -44,25 +46,41 @@ def _gauss_initial_guess(x, y):
     return p0
 
 
-def gaussfit(x, y, p0=None, yerr=None, return_errors=False, use_deriv=True):
-    """ 
-    Fit a Gaussian function to `x`,`y` using least-squares, with initial guess
-    `p0` = [A, x0, σ, offset]. If p0 is not provided, the function tries an
-    educated guess, which might lead to bad results.
+def gaussfit(x: np.ndarray,
+             y: np.ndarray,
+             p0: Optional[List] = None,
+             yerr: Optional[np.ndarray] = None,
+             return_errors: bool = False,
+             use_deriv: bool = True,
+             guess_rv: Optional[float] = None,
+             **kwargs) -> List:
+    """
+    Fit a Gaussian function to `x`,`y` (and, if provided, `yerr`) using
+    least-squares, with initial guess `p0` = [A, x0, σ, offset]. If p0 is not
+    provided, the function tries an educated guess, which might lead to bad
+    results.
 
-    Parameters
-    ----------
-    x : array
-        The independent variable where the data is measured
-    y : array
-        The dependent data.
-    p0 : list or array
-        Initial guess for the parameters. If None, try to guess them from x,y.
-    return_errors : bool
-        Whether to return estimated errors on the parameters.
-    use_deriv : bool
-        Whether to use partial derivatives of the Gaussian (wrt the parameters)
-        as Jacobian in the fit. If False, the Jacobian will be estimated.
+    Args:
+        x (array):
+            The independent variable where the data is measured
+        y (array):
+            The dependent data.
+        p0 (list or array):
+            Initial guess for the parameters. If None, try to guess them from x,y.
+        return_errors (bool):
+            Whether to return estimated errors on the parameters.
+        use_deriv (bool):
+            Whether to use partial derivatives of the Gaussian (wrt the parameters)
+            as Jacobian in the fit. If False, the Jacobian will be estimated.
+        guess_rv (float):
+            Initial guess for the RV (x0)
+
+    Returns:
+        p (array):
+            Best-fit values of the four parameters [A, x0, σ, offset]
+        err (array):
+            Estimated uncertainties on the four parameters
+            (only if `return_errors=True`)
     """
     if (y == 0).all():
         return np.nan * np.ones(4)
@@ -79,6 +97,8 @@ def gaussfit(x, y, p0=None, yerr=None, return_errors=False, use_deriv=True):
 
     if p0 is None:
         p0 = _gauss_initial_guess(x, y)
+    if guess_rv is not None:
+        p0[1] = guess_rv
 
     # if yerr is None:
     #     args = (x, y)

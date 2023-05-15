@@ -19,7 +19,8 @@ from .gaussian import gauss, gaussfit, FWHM as FWHMcalc, RV, RVerror, contrast
 from .bisector import BIS, BIS_HARPS as BIS_HARPS_calc, bisector
 from .vspan import vspan
 from .wspan import wspan
-from .keywords import *
+from .keywords import (getRV, getRVerror, getFWHM, getBJD, getMASK, getRVarray,
+                       getINSTRUMENT)
 from . import writers
 from .ssh_files import ssh_fits_open
 from .utils import no_stack_warning, _get_hdul
@@ -165,7 +166,7 @@ class Indicators:
 
                     if inst == 'HARPS':
                         hdu_number, data_index = 0, -1
-                    
+
                     if inst == 'CORALIE':
                         hdu_number, data_index = 0, -1
 
@@ -220,7 +221,10 @@ class Indicators:
     @property
     def RV(self):
         """ The measured radial velocity, from a Gaussian fit to the CCF """
-        return RV(self.rv, self.ccf, self.eccf)
+        try:
+            return RV(self.rv, self.ccf, self.eccf, guess_rv=self.pipeline_RV)
+        except ValueError:
+            return RV(self.rv, self.ccf, self.eccf)
 
     @property
     def RVerror(self):
@@ -280,7 +284,11 @@ class Indicators:
     @property
     def FWHM(self):
         """ The full width at half maximum of the CCF """
-        return FWHMcalc(self.rv, self.ccf, self.eccf)
+        try:
+            return FWHMcalc(self.rv, self.ccf, self.eccf,
+                            guess_rv=self.pipeline_RV)
+        except ValueError:
+            return FWHMcalc(self.rv, self.ccf, self.eccf)
 
     @property
     def FWHMerror(self):
@@ -401,7 +409,13 @@ class Indicators:
 
         if show_fit:
             vv = np.linspace(self.rv.min(), self.rv.max(), 1000)
-            pfit = gaussfit(self.rv, self.ccf, yerr=self.eccf)
+
+            try:
+                pfit = gaussfit(self.rv, self.ccf, yerr=self.eccf,
+                                guess_rv=self.pipeline_RV)
+            except ValueError:
+                pfit = gaussfit(self.rv, self.ccf, yerr=self.eccf)
+
             ax.plot(vv, gauss(vv, pfit), label='Gaussian fit')
 
         if show_bisector:

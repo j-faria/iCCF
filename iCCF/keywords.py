@@ -1,10 +1,9 @@
 import numpy as np
-from astropy.io import fits
-
 from .utils import _get_hdul
 
 __all__ = ['getRV', 'getRVerror', 'getRVarray',
            'getBJD', 'getFWHM', 'getMASK', 'getINSTRUMENT']
+
 
 def _try_keywords(hdul, *keywords, exception=None):
     for kw in keywords:
@@ -17,7 +16,7 @@ def _try_keywords(hdul, *keywords, exception=None):
 
 def getRV(fitsfile, hdul=None, keyword=None, return_hdul=False, **kwargs):
     """
-    Try to find the radial velocity in the header of `fitsfile`. If `keyword` 
+    Try to find the radial velocity in the header of `fitsfile`. If `keyword`
     is not provided, search for the following keywords
     - HIERARCH ESO QC CCF RV
     - HIERARCH ESO DRS CCF RVC
@@ -203,7 +202,7 @@ def getFWHM(fitsfile, hdul=None, keyword=None, return_hdul=False, **kwargs):
         return hdul[0].header[keyword]
 
     # need to look for it
-    kws = ['HIERARCH ESO QC CCF FWHM']
+    kws = ['HIERARCH ESO QC CCF FWHM', 'HIERARCH ESO DRS CCF FWHM']
     val = _try_keywords(hdul, *kws)
 
     if val is not None:
