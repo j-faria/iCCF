@@ -327,7 +327,7 @@ class Indicators:
         The radial velocity as derived by the pipeline and stored in CCF fits
         file
         """
-        if not hasattr(self, 'HDU'):
+        if not hasattr(self, 'HDU') or self.HDU is None:
             raise ValueError('Cannot access header (no HDU attribute)')
 
         return getRV(None, hdul=self.HDU)
