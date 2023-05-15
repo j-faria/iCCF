@@ -1,6 +1,7 @@
-import warnings
+from typing import List, Union, Optional
+
 import numpy as np
-from numpy import exp, log, sqrt, inf
+from numpy import exp, log, sqrt
 from scipy import optimize
 
 from .utils import numerical_gradient
