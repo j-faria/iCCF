@@ -2,7 +2,12 @@ import os
 import bisect
 import warnings
 from astropy.timeseries import periodograms
-from pkg_resources import resource_stream
+try:
+    from pkg_resources import resource_stream
+    pkg_resources_available = True
+except ModuleNotFoundError:
+    pkg_resources_available = False
+
 
 import numpy as np
 from numpy import sqrt, sum
@@ -19,10 +24,14 @@ from .utils import find_myself
 
 
 def read_spectral_format():
+    if pkg_resources_available:
+        sf_red_stream = resource_stream(__name__, 'data/spectral_format_red.dat')
+        sf_blue_stream = resource_stream(__name__, 'data/spectral_format_blue.dat')
+    else:
+        sf_red_stream = os.path.join(os.path.dirname(__file__), 'data/spectral_format_red.dat')
+        sf_blue_stream = os.path.join(os.path.dirname(__file__), 'data/spectral_format_blue.dat')
 
-    sf_red_stream = resource_stream(__name__, 'data/spectral_format_red.dat')
     red = np.loadtxt(sf_red_stream)
-    sf_blue_stream = resource_stream(__name__, 'data/spectral_format_blue.dat')
     blue = np.loadtxt(sf_blue_stream)
 
     col_start_wave = 7
