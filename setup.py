@@ -50,6 +50,6 @@ setup(
         'cached_property',
         'paramiko',
         'tqdm',
-        'numba',
+        #'numba',
     ],
 )

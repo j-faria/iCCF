@@ -8,7 +8,11 @@ from bisect import bisect_left, bisect_right
 from glob import glob
 from itertools import product
 
-import numba
+try:
+    from numba import njit
+except ImportError:
+    njit = lambda f: f
+
 import numpy as np
 from astropy.io import fits
 
@@ -125,7 +129,7 @@ def makeCCF(spec_wave, spec_flux, mask_wave=None, mask_contrast=None,
     return rvarray, ccfarray
 
 
-@numba.njit
+@njit
 def espdr_compute_CCF_numba_fast(ll, dll, flux, error, blaze, quality,
                                  RV_table, mask_wave, mask_contrast, berv,
                                  bervmax, mask_width=0.5):
