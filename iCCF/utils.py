@@ -87,8 +87,12 @@ def find_myself():
 
 def load_example_data():
     """ Load the example CCF stored in iCCF/example_data """
-    from pkg_resources import resource_stream
-    data = np.load(resource_stream(__name__, 'example_data/CCF1.npy'))
+    try:
+        from pkg_resources import resource_stream
+        data = np.load(resource_stream(__name__, 'example_data/CCF1.npy'))
+    except ModuleNotFoundError:
+        path = os.path.join(find_myself(), 'iCCF/example_data/CCF1.npy')
+        data = np.load(path)
     return data
 
 
