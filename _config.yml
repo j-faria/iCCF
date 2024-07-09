@@ -1,10 +1,12 @@
 title: "iCCF"
-remote_theme: pmarsceill/just-the-docs
+remote_theme: just-the-docs/just-the-docs
 theme: "just-the-docs"
 
 color_scheme: "light"
 search_enabled: true
 
+# Set a path/url to a favicon that will be displayed by the browser
+favicon_ico: "/assets/images/favicon.ico"
 
 # Heading anchor links appear on hover over h1-h6 tags in page content
 # allowing users to deep link to a particular heading on a page.
@@ -16,4 +18,4 @@ heading_anchors: true
 
 # Footer content
 # appears at the bottom of every page's main content
-footer_content: "Copyright &copy; 2020 João Faria. Distributed under the <a href=\"https://github.com/j-faria/iCCF/blob/master/LICENSE\">MIT license.</a>"
+footer_content: "Copyright &copy; 2020-2024 João Faria. Distributed under the <a href=\"https://github.com/j-faria/iCCF/blob/master/LICENSE\">MIT license.</a>"
