@@ -23,11 +23,8 @@ Or from source
 ```
 git clone https://github.com/j-faria/iCCF.git
 cd iCCF
-python setup.py install 
+pip install -e .
 ```
-
-You can append `--user` to both commands (`pip` and `python ...`) in case you don't have root access.
-
 
 All the indicators are based on the works of others.
 Please cite these works if you use **iCCF**.
