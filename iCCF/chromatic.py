@@ -387,10 +387,10 @@ class chromaticRV():
             axs[indices_pers[-1]].set_xlabel('Period [days]')
 
             kw = dict(fontsize=8)
-            axs[indices_pers[0]].set_title('full $\lambda$ range', loc='right', **kw)
-            axs[indices_pers[1]].set_title(f'blue $\lambda={self.bands[0]}$ nm', loc='right', **kw)
-            axs[indices_pers[2]].set_title(f'mid $\lambda={self.bands[1]}$ nm', loc='right', **kw)
-            axs[indices_pers[3]].set_title(f'red $\lambda={self.bands[2]}$ nm', loc='right', **kw)
+            axs[indices_pers[0]].set_title(r'full $\lambda$ range', loc='right', **kw)
+            axs[indices_pers[1]].set_title(rf'blue $\lambda={self.bands[0]}$ nm', loc='right', **kw)
+            axs[indices_pers[2]].set_title(rf'mid $\lambda={self.bands[1]}$ nm', loc='right', **kw)
+            axs[indices_pers[3]].set_title(rf'red $\lambda={self.bands[2]}$ nm', loc='right', **kw)
 
         for ax in axs[indices_pers]:
             ax.axvline(5.12, alpha=0.2, color='k', ls='--', zorder=-1)
