@@ -321,7 +321,7 @@ class chromaticRV():
                                        self._redRVerror[mask], color='r', **kw)
 
         if periodogram:
-            periods = np.logspace(np.log10(1), np.log10(2 * self.time.ptp()),
+            periods = np.logspace(np.log10(1), np.log10(2 * np.ptp(self.time)),
                                   1000)
             kwfap = dict(alpha=0.2, ls='--')
 

@@ -259,7 +259,7 @@ class Indicators:
             if np.nonzero(ccf)[0].size == 0:
                 RVs.append(np.nan)
             else:
-                p0 = [-ccf.ptp(), self.RV, self.FWHM, ccf.mean()]
+                p0 = [-np.ptp(ccf), self.RV, self.FWHM, ccf.mean()]
                 RVs.append(RV(self.rv, ccf, p0=p0))
 
         return np.array(RVs)

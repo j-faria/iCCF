@@ -28,7 +28,7 @@ def _gauss_initial_guess(x, y):
     p0 = []
 
     # guess the amplitude (force it to be negative)
-    p0.append(-abs(y.ptp()))
+    p0.append(-abs(np.ptp(y)))
 
     # guess the center, but maybe the CCF is upside down?
     m = y.mean()
