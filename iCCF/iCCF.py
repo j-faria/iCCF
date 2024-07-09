@@ -77,17 +77,20 @@ class Indicators:
         if Wspan_on: self.on_indicators.append('Wspan')
         self.on_indicators_rdb = rdb_names(self.on_indicators)
 
+        # the ESPRESSO pipeline does not consider the errors when fitting the
+        # CCF, so by default we do not use them as well
+        self._use_errors = False
+
         self._use_bis_from_HARPS = BIS_HARPS
 
         self.HDU = None
-
         self._EPS = EPS
         self._nEPS = nEPS
 
     def __repr__(self):
         if self.filename is None:
-            r = f'CCFindicators(RVmin={self.rv.min()}; '\
-                f'RVmax={self.rv.max()}; size={self.rv.size})'
+            info = f'RVmin={self.rv.min()}; RVmax={self.rv.max()}; n={self.rv.size}'
+            r = f'CCFindicators({info})'
         else:
             r = f'CCFindicators(CCF from {basename(self.filename)})'
         return r
@@ -182,8 +185,13 @@ class Indicators:
                                       HOST=host)
 
             ccf = hdul[hdu_number].data[data_index, :]
+            try:
+                eccf = hdul[hdu_number + 1].data[data_index, :]
+            except IndexError:
+                eccf = None
+                warnings.warn('no CCF errors found')
 
-            I = cls(rv, ccf, **kwargs)
+            I = cls(rv, ccf, eccf=eccf, **kwargs)
 
             # save attributes
             I.filename = file
@@ -221,10 +229,11 @@ class Indicators:
     @property
     def RV(self):
         """ The measured radial velocity, from a Gaussian fit to the CCF """
+        eccf = self.eccf if self._use_errors else None
         try:
-            return RV(self.rv, self.ccf, self.eccf, guess_rv=self.pipeline_RV)
+            return RV(self.rv, self.ccf, eccf, guess_rv=self.pipeline_RV)
         except ValueError:
-            return RV(self.rv, self.ccf, self.eccf)
+            return RV(self.rv, self.ccf, eccf)
 
     @property
     def RVerror(self):
@@ -284,6 +293,7 @@ class Indicators:
     @property
     def FWHM(self):
         """ The full width at half maximum of the CCF """
+        eccf = self.eccf if self._use_errors else None
         try:
             return FWHMcalc(self.rv, self.ccf, self.eccf,
                             guess_rv=self.pipeline_RV)
@@ -324,8 +334,7 @@ class Indicators:
     @property
     def pipeline_RV(self):
         """
-        The radial velocity as derived by the pipeline and stored in CCF fits
-        file
+        The radial velocity as derived by the pipeline, from the header.
         """
         if not hasattr(self, 'HDU') or self.HDU is None:
             raise ValueError('Cannot access header (no HDU attribute)')
@@ -335,7 +344,7 @@ class Indicators:
     @property
     def pipeline_FWHM(self):
         """
-        The FWHM as derived by the pipeline and stored in CCF fits file
+        The FWHM as derived by the pipeline, from the header.
         """
         if not hasattr(self, 'HDU'):
             raise ValueError('Cannot access header (no HDU attribute)')
@@ -345,7 +354,7 @@ class Indicators:
     @property
     def pipeline_RVerror(self):
         """ 
-        The RV error as derived by the pipeline and stored in CCF fits file
+        The RV error as derived by the pipeline, from the header.
         """
         if not hasattr(self, 'HDU'):
             raise ValueError('Cannot access header (no HDU attribute)')
@@ -401,20 +410,18 @@ class Indicators:
             _, ax = plt.subplots(constrained_layout=True)
 
         label = self.filename
-        if self.eccf is None:
-            ax.plot(self.rv, self.ccf, 's-', ms=3, label=label)
-        else:
-            ax.errorbar(self.rv, self.ccf, self.eccf, fmt='s-', ms=3,
-                        label=label)
+        eccf = self.eccf if self._use_errors else None
+
+        ax.errorbar(self.rv, self.ccf, eccf, fmt='s-', ms=3, label=label)
 
         if show_fit:
             vv = np.linspace(self.rv.min(), self.rv.max(), 1000)
 
             try:
-                pfit = gaussfit(self.rv, self.ccf, yerr=self.eccf,
+                pfit = gaussfit(self.rv, self.ccf, yerr=eccf,
                                 guess_rv=self.pipeline_RV)
             except ValueError:
-                pfit = gaussfit(self.rv, self.ccf, yerr=self.eccf)
+                pfit = gaussfit(self.rv, self.ccf, yerr=eccf)
 
             ax.plot(vv, gauss(vv, pfit), label='Gaussian fit')
 
@@ -426,8 +433,9 @@ class Indicators:
             bisf = out[-1]
             top_limit = out[-4][1]
             bot_limit = out[-5][0]
-            yy = np.linspace(bot_limit, top_limit, 100)
-            ax.plot(bisf(yy), yy)
+            yy = np.linspace(bot_limit, top_limit, 25)
+            ax.plot(bisf(yy), yy, '-s',
+                    label=f'Bisector (BIS={out[0]:.2f})')
 
         ax.legend()
         ax.set(xlabel='RV [km/s]', ylabel='CCF')
