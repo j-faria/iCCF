@@ -4,240 +4,16 @@ import multiprocessing
 import os
 import subprocess
 import time as pytime
-from bisect import bisect_left, bisect_right
+from bisect import bisect_left
 from glob import glob
 from itertools import product
 
-try:
-    from numba import njit
-except ImportError:
-    njit = lambda f: f
-
 import numpy as np
 from astropy.io import fits
-
-from tqdm import tqdm, trange
+from tqdm import tqdm
 
 from .iCCF import Indicators
-from .utils import doppler_shift_wave, get_ncores
-
-
-def makeCCF(spec_wave, spec_flux, mask_wave=None, mask_contrast=None,
-            mask=None, mask_width=0.82, rvmin=None, rvmax=None, drv=None,
-            rvarray=None):
-    """
-    Cross-correlate an observed spectrum with a mask template.
-
-    For each RV value in rvmin:rvmax:drv (or in rvarray), the wavelength axis of
-    the mask is Doppler shifted. The mask is then projected onto the spectrum
-    (using the provided `mask_width`) and the sum of the flux that goes through
-    the mask "holes" is calculated. This sum is weighted by the mask contrast
-    (which corresponds to line depths) to optimally extract the Doppler
-    information.
-
-    Parameters
-    ----------
-    spec_wave : array
-        The wavelength of the observed spectrum.
-    spec_flux : array
-        The flux of the observed spectrum.
-    mask_wave : array, optional
-        The central wavelength of the mask.
-    mask_contrast : array, optional
-        The flux (contrast) of the mask.
-    mask : array (..., 3), optional
-        The mask as an array with lambda1, lambda2, depth.
-    mask_width : float, optional [default=0.82]
-        Width of the mask "holes", in velocity in km/s.
-    rvmin : float, optional
-        Minimum radial velocity for which to calculate the CCF [km/s].
-    rvmax : float, optional
-        Maximum radial velocity for which to calculate the CCF [km/s].
-    drv : float, optional
-        The radial-velocity step [km/s].
-    rvarray : array, optional
-        The radial velocities at which to calculate the CCF [km/s]. If this is
-        provided, `rvmin`, `rvmax` and `drv` are ignored.
-
-    Returns
-    -------
-    rv : array The radial-velocity where the CCF was calculated [km/s]. These
-        RVs refer to a shift of the mask -- positive values indicate that the
-        mask has been red-shifted and negative numbers indicate a blue-shift of
-        the mask.
-    ccf : array
-        The values of the cross-correlation function.
-    """
-    if rvarray is None:
-        if rvmin is None or rvmax is None or drv is None:
-            raise ValueError("Provide `rvmin`, `rvmax`, and `drv`.")
-        # check order of rvmin and rvmax
-        if rvmax <= rvmin:
-            raise ValueError("`rvmin` should be smaller than `rvmax`.")
-        rvarray = np.arange(rvmin, rvmax + drv / 2, drv)
-
-    wave_resolution = spec_wave[1] - spec_wave[0]
-
-    if mask is None:
-        if mask_wave is None:
-            raise ValueError("Provide the mask wavelengths in `mask_wave`.")
-        if mask_contrast is None:
-            raise ValueError(
-                "Provide the mask wavelengths in `mask_contrast`.")
-
-        mask = np.c_[doppler_shift_wave(mask_wave, -mask_width / 2),
-                     doppler_shift_wave(mask_wave, mask_width / 2),
-                     mask_contrast]
-
-    ccfarray = np.zeros_like(rvarray)
-    for i, RV in enumerate(rvarray):
-        nlines = 0
-        CCF = 0.0
-
-        mask_rv_shifted = np.copy(mask)
-        mask_rv_shifted[:, :2] = doppler_shift_wave(mask[:, :2], RV)
-
-        # region of intersection between the RV-shifted mask and the spectrum
-        region = (spec_wave[0] < mask_rv_shifted[:, 0]) & (mask_rv_shifted[:, 1] < spec_wave[-1])
-        mask_rv_shifted = mask_rv_shifted[region]
-
-        # for every line in the mask
-        for mask_line_start, mask_line_end, mask_line_depth in mask_rv_shifted:
-
-            if mask_line_end + wave_resolution >= spec_wave[-1]:
-                break
-
-            # find the limiting indices in spec_wave, corresponding to the start
-            # and end wavelength of the mask
-            linePixelIni = bisect_left(spec_wave, mask_line_start)
-            linePixelEnd = bisect_right(spec_wave, mask_line_end)
-
-            # fraction of the spectrum inside the mask hole at the start
-            lineFractionIni = (
-                spec_wave[linePixelIni] - mask_line_start) / wave_resolution
-            # fraction of the spectrum inside the mask hole at the end
-            lineFractionEnd = 1 - abs(
-                mask_line_end - spec_wave[linePixelEnd]) / wave_resolution
-
-            CCF += mask_line_depth * np.sum(spec_flux[linePixelIni:linePixelEnd])
-            CCF += mask_line_depth * lineFractionIni * spec_flux[linePixelIni - 1]
-            CCF += mask_line_depth * lineFractionEnd * spec_flux[linePixelEnd + 1]
-            nlines += 1
-
-        ccfarray[i] = CCF
-
-    return rvarray, ccfarray
-
-
-@njit
-def espdr_compute_CCF_numba_fast(ll, dll, flux, error, blaze, quality,
-                                 RV_table, mask_wave, mask_contrast, berv,
-                                 bervmax, mask_width=0.5):
-    c = 299792.458
-
-    nx_s2d = flux.size
-    # ny_s2d = 1  #! since this function computes only one order
-    n_mask = mask_wave.size
-    nx_ccf = len(RV_table)
-
-    ccf_flux = np.zeros_like(RV_table)
-    ccf_error = np.zeros_like(RV_table)
-    ccf_quality = np.zeros_like(RV_table)
-
-    dll2 = dll / 2.0  # cpl_image_divide_scalar_create(dll,2.);
-    ll2 = ll - dll2  # cpl_image_subtract_create(ll,dll2);
-
-    #? this mimics the pipeline (note that cpl_image_get indexes starting at 1)
-    imin = 1
-    imax = nx_s2d
-    while (imin < nx_s2d and quality[imin - 1] != 0):
-        imin += 1
-    while (imax > 1 and quality[imax - 1] != 0):
-        imax -= 1
-    # my tests to speed things up
-    # imin = np.where(quality == 0)[0][0]
-    # imax = len(quality) - np.where(quality[::-1] == 0)[0][0] - 1
-    # print(imin, imax)
-
-    if imin >= imax:
-        return
-    #? note that cpl_image_get indexes starting at 1, hence the "-1"s
-    llmin = ll[imin + 1 - 1] / (1 + berv / c) * (1 + bervmax / c) / (1 + RV_table[0] / c)
-    llmax = ll[imax - 1 - 1] / (1 + berv / c) * (1 - bervmax / c) / (1 + RV_table[nx_ccf - 1] / c)
-
-    # print('blaze[0]:', blaze[0])
-    # print('flux[:10]:', flux[:10])
-
-    # print(ll[0])
-    # print(imin, imax)
-    # print(llmin, llmax)
-
-    imin = 0; imax = n_mask - 1
-
-    #? turns out cpl_table_get indexes stating at 0...
-    while (imin < n_mask and mask_wave[imin] < (llmin + 0.5 * mask_width / c * llmin)): imin += 1
-    while (imax >= 0     and mask_wave[imax] > (llmax - 0.5 * mask_width / c * llmax)): imax -= 1
-    # print(imin, imax)
-
-    # for (i = imin; i <= imax; i++)
-    for i in range(imin, imax + 1):
-        #? cpl_array_get also indexes starting at 0
-        llcenter = mask_wave[i] * (1. + RV_table[nx_ccf // 2] / c)
-
-        index_center = 1
-        while(ll[index_center-1] < llcenter): index_center += 1
-        # my attempt to speed it up
-        # index_center = np.where(ll < llcenter)[0][-1] +1
-
-        contrast = mask_contrast[i]
-        w = contrast * contrast
-        # print(i, w)
-
-        # print('llcenter:', llcenter)
-        # print('index_center:', index_center)
-
-        for j in range(0, nx_ccf):
-            llcenter = mask_wave[i] * (1. + RV_table[j] / c)
-            llstart = llcenter - 0.5 * mask_width / c * llcenter
-            llstop = llcenter + 0.5 * mask_width / c * llcenter
-
-            # print(llstart, llcenter, llstop)
-            index1 = 1
-            while(ll2[index1-1] < llstart): index1 += 1
-            # index1 = np.where(ll2 < llstart)[0][-1] +1
-
-            index2 = index1
-            while (ll2[index2-1] < llcenter): index2 += 1
-            # index2 = np.where(ll2 < llcenter)[0][-1] +1
-
-            index3 = index2
-            while (ll2[index3-1] < llstop): index3 += 1;
-            # index3 = np.where(ll2 < llstop)[0][-1] +1
-
-            # print(index1, index2, index3)
-            # sys.exit(0)
-
-            k = j
-
-            # if (i == imax and j == 0):
-            #     print("index1=", index1)
-            #     print("index2=", index2)
-            #     print("index3=", index3)
-
-            for index in range(index1, index3):
-                ccf_flux[k] += w * flux[index-1] / blaze[index-1] * blaze[index_center-1]
-
-            ccf_flux[k] += w * flux[index1 - 1 - 1] * (ll2[index1-1] - llstart) / dll[index1 - 1 - 1] / blaze[index1 - 1 - 1] * blaze[index_center - 1]
-            ccf_flux[k] -= w * flux[index3 - 1 - 1] * (ll2[index3-1] - llstop) / dll[index3 - 1 - 1] / blaze[index3 - 1 - 1] * blaze[index_center - 1]
-
-            ccf_error[k] += w * w * error[index2 - 1 - 1] * error[index2 - 1 - 1]
-
-            ccf_quality[k] += quality[index2 - 1 - 1]
-
-    # my_error = cpl_image_power(*CCF_error_RE,0.5);
-    ccf_error = np.sqrt(ccf_error)
-
-    return ccf_flux, ccf_error, ccf_quality
+from .utils import get_ncores
 
 
 def espdr_compute_CCF_fast(ll, dll, flux, error, blaze, quality, RV_table,
@@ -256,70 +32,54 @@ def espdr_compute_CCF_fast(ll, dll, flux, error, blaze, quality, RV_table,
     dll2 = dll / 2.0  # cpl_image_divide_scalar_create(dll,2.);
     ll2 = ll - dll2  # cpl_image_subtract_create(ll,dll2);
 
-    #? this mimics the pipeline (note that cpl_image_get indexes starting at 1)
-    imin = 1; imax = nx_s2d
-    while(imin < nx_s2d and quality[imin-1] != 0): imin += 1
-    while(imax > 1 and quality[imax-1] != 0): imax -= 1
-    # my tests to speed things up
-    # imin = np.where(quality == 0)[0][0]
-    # imax = len(quality) - np.where(quality[::-1] == 0)[0][0] - 1
-    # print(imin, imax)
+    #? this mimics the pipeline (note that cpl_image_get indices start at 1)
+    imin, imax = 1, nx_s2d
+    while(imin < nx_s2d and quality[imin-1] != 0):
+        imin += 1
+    while(imax > 1 and quality[imax-1] != 0):
+        imax -= 1
 
     if imin >= imax:
         return
-    #? note that cpl_image_get indexes starting at 1, hence the "-1"s
+    #? note that cpl_image_get indices start at 1, hence the "-1"s
     llmin = ll[imin + 1 - 1] / (1. + berv / c) * (1. + bervmax / c) / (1. + RV_table[0] / c)
     llmax = ll[imax - 1 - 1] / (1. + berv / c) * (1. - bervmax / c) / (1. + RV_table[nx_ccf - 1] / c)
 
-    imin = 0; imax = n_mask - 1
+    imin, imax = 0, n_mask - 1
 
-    #? turns out cpl_table_get indexes stating at 0...
-    while (imin < n_mask and mask['lambda'][imin] < (llmin + 0.5 * mask_width / c * llmin)): imin += 1
-    while (imax >= 0     and mask['lambda'][imax] > (llmax - 0.5 * mask_width / c * llmax)): imax -= 1
-    # print(imin, imax)
+    #? turns out cpl_table_get indices start at 0...
+    while (imin < n_mask and mask['lambda'][imin] < (llmin + 0.5 * mask_width / c * llmin)):
+        imin += 1
+    while (imax >= 0     and mask['lambda'][imax] > (llmax - 0.5 * mask_width / c * llmax)):
+        imax -= 1
 
-    # for (i = imin; i <= imax; i++)
-    for i in trange(imin, imax + 1):
-        #? cpl_array_get also indexes starting at 0
+    for i in range(imin, imax + 1):
+        #? cpl_array_get indices also start at 0
         llcenter = mask['lambda'][i] * (1. + RV_table[nx_ccf // 2] / c)
 
-        # index_center = 1
-        # while(ll[index_center-1] < llcenter): index_center += 1
-        # my attempt to speed it up
-        index_center = np.where(ll < llcenter)[0][-1] + 1
+        index_center = bisect_left(ll, llcenter) + 1
 
         contrast = mask['contrast'][i]
         w = contrast * contrast
-        # print(i, w)
 
         for j in range(0, nx_ccf):
             llcenter = mask['lambda'][i] * (1. + RV_table[j] / c)
             llstart = llcenter - 0.5 * mask_width / c * llcenter
             llstop = llcenter + 0.5 * mask_width / c * llcenter
 
-            # print(llstart, llcenter, llstop)
-            # index1 = 1
-            # while(ll2[index1-1] < llstart): index1 += 1
-            index1 = np.where(ll2 < llstart)[0][-1] +1
+            index1 = bisect_left(ll2, llstart) + 1
 
-            # index2 = index1
-            # while (ll2[index2-1] < llcenter): index2 += 1
-            index2 = np.where(ll2 < llcenter)[0][-1] +1
+            index2 = bisect_left(ll2, llcenter) + 1
 
-            # index3 = index2
-            # while (ll2[index3-1] < llstop): index3 += 1;
-            index3 = np.where(ll2 < llstop)[0][-1] +1
-
-            # print(index1, index2, index3)
-            # sys.exit(0)
+            index3 = bisect_left(ll2, llstop) + 1
 
             k = j
 
             for index in range(index1, index3):
-                ccf_flux[k] += w * flux[index-1] / blaze[index-1] * blaze[index_center-1]
+                ccf_flux[k] += w * flux[index-1] / blaze[index-1] * blaze[index_center-1]  # noqa: E501
 
-            ccf_flux[k] += w * flux[index1 - 1 - 1] * (ll2[index1-1] - llstart) / dll[index1 - 1 - 1] / blaze[index1 - 1 - 1] * blaze[index_center - 1]
-            ccf_flux[k] -= w * flux[index3 - 1 - 1] * (ll2[index3-1] - llstop) / dll[index3 - 1 - 1] / blaze[index3 - 1 - 1] * blaze[index_center - 1]
+            ccf_flux[k] += w * flux[index1-1-1] * (ll2[index1-1]-llstart) / dll[index1-1-1] / blaze[index1-1-1] * blaze[index_center-1]
+            ccf_flux[k] -= w * flux[index3-1-1] * (ll2[index3-1]-llstop) / dll[index3-1-1] / blaze[index3-1-1] * blaze[index_center-1]
 
             ccf_error[k] += w * w * error[index2 - 1 - 1] * error[index2 - 1 - 1]
 
@@ -331,17 +91,16 @@ def espdr_compute_CCF_fast(ll, dll, flux, error, blaze, quality, RV_table,
     return ccf_flux, ccf_error, ccf_quality
 
 
-def find_dll(s2dfile):
-    hdu_header = fits.getheader(s2dfile)
-    dllfile = hdu_header['HIERARCH ESO PRO REC1 CAL7 NAME']
-    if os.path.exists(dllfile):
-        return dllfile
-    elif len(glob(dllfile + '*')) > 1:
-        return glob(dllfile + '*')[0]
+def find_blaze(s2dfile, hdu=None):
+    if hdu is None:
+        header = fits.getheader(s2dfile)
     else:
-        # TODO: what should we do here?
-        date = hdu_header['DATE-OBS']
-        raise FileNotFoundError("find_dll was not able of finding the file.")
+        header = hdu[0].header
+
+    for k, v in dict(header['*CAL* CATG']).items():
+        if v == 'BLAZE_A':
+            return k, header[k.replace('CATG', 'NAME')]
+
 
 def calculate_s2d_ccf(s2dfile, rvarray, order='all',
                       mask_file='ESPRESSO_G2.fits', mask=None, mask_width=0.5,
@@ -490,8 +249,6 @@ def _dowork(args, debug=False):
     corr_model = kwargs['corr_model']
     rvarray = kwargs['rvarray']
     mask = kwargs['mask']
-    mask_wave = mask['lambda'].astype(np.float64)
-    mask_contrast = mask['contrast'].astype(np.float64)
     BERV = kwargs['BERV']
     BERVMAX = kwargs['BERVMAX']
     mask_width = kwargs['mask_width']
@@ -506,14 +263,8 @@ def _dowork(args, debug=False):
     y = flux * blaze / corr_model[order]
     ye = error * blaze #/ corr_model[order]
 
-    # ccf, ccfe, ccfq = espdr_compute_CCF_fast(ll, dll, y, ye, blaze, quality,
-    #                                         rvarray, mask, BERV, BERVMAX,
-    #                                         mask_width=mask_width)
-
-    ccf, ccfe, ccfq = espdr_compute_CCF_numba_fast(
-        ll, dll, y, ye, blaze, quality, rvarray, mask_wave, mask_contrast,
-        BERV, BERVMAX, mask_width=mask_width
-    )
+    ccf, ccfe, ccfq = espdr_compute_CCF_fast(ll, dll, y, ye, blaze, quality, rvarray, mask,
+                                             BERV, BERVMAX, mask_width=mask_width)
 
     return ccf, ccfe, ccfq
 
@@ -521,7 +272,7 @@ def _dowork(args, debug=False):
 def calculate_s2d_ccf_parallel(s2dfile, rvarray, order='all',
                                mask_file='ESPRESSO_G2.fits', mask_width=0.5,
                                ncores=None, verbose=True, full_output=False,
-                               ignore_blaze=True, skip_flux_corr=False,
+                               ignore_blaze=False, skip_flux_corr=False,
                                ssh=None):
     """
     Calculate the CCF between a 2D spectra and a mask. This function can lookup
@@ -590,8 +341,12 @@ def calculate_s2d_ccf_parallel(s2dfile, rvarray, order='all',
     else:
         if verbose:
             print('De-blazing (i.e. assuming the S2D is *not* de-blazed)')
-        blazefile = hdu[0].header['HIERARCH ESO PRO REC1 CAL12 NAME']
-        blazefile = find_file(blazefile, ssh, verbose)
+        _, blazefile = find_blaze(None, hdu=hdu)
+        try:
+            blazefile = find_file(blazefile.replace(':', '_'), ssh, verbose)
+        except FileNotFoundError:
+            blazefile = find_file(blazefile, ssh, verbose)
+
         with fits.open(blazefile) as hdu_blaze:
             blaze = hdu_blaze[1].data
 
@@ -622,13 +377,16 @@ def calculate_s2d_ccf_parallel(s2dfile, rvarray, order='all',
         # see espdr_science.c : espdr_correct_flux
         poly_deg = round(8 * fit_nb / norders)
         llc = hdu[5].data[:, order_len // 2]
-        coeff = np.polyfit(llc[ignore:], flux_corr[ignore:], poly_deg - 1)
+        coeff = np.polyfit(llc[ignore:], flux_corr[ignore:], poly_deg)
         # corr_model = np.ones_like(hdu[5].data, dtype=np.float32)
         corr_model = np.polyval(coeff, hdu[5].data)
         if verbose:
             print('Performing flux correction', end=' ')
             print(f'(discarding {ignore} orders; '
                   f'polynomial of degree {poly_deg})')
+            
+            print("Flux correction performed with min/max values:", end=' ')
+            print(f'{flux_corr.min():.6f}/{flux_corr.max():.6f}')
 
     kwargs = {}
     kwargs['data'] = [None] + [hdu[i].data for i in range(1, 6)]
@@ -642,13 +400,23 @@ def calculate_s2d_ccf_parallel(s2dfile, rvarray, order='all',
     kwargs['mask_width'] = mask_width
     # kwargs['verbose'] = verbose
 
-    start = pytime.time()
     if verbose:
         print('Calculating...', end=' ', flush=True)
 
+    start = pytime.time()
+
     pool = multiprocessing.Pool(ncores)
-    ccfs, ccfes, ccfqs = zip(*pool.map(_dowork, product(orders, [kwargs, ])))
+
+    ## progress bar
+    ccfs, ccfes, ccfqs = zip(
+        *tqdm(pool.imap_unordered(_dowork, product(orders, [kwargs, ])),
+              total=len(orders))
+    )
+    ## no progress bar
+    # ccfs, ccfes, ccfqs = zip(*pool.map(_dowork, product(orders, [kwargs, ])))
+    
     pool.close()
+
     end = pytime.time()
 
     if verbose:
@@ -661,8 +429,7 @@ def calculate_s2d_ccf_parallel(s2dfile, rvarray, order='all',
         qsum = np.sqrt(np.sum(np.square(ccfes), axis=0))
         ccfe = np.concatenate([ccfes, qsum.reshape(1, -1)])
         # sum the qualities
-        ccfq = np.concatenate(
-            [ccfqs, np.array(ccfqs).sum(axis=0, keepdims=True)])
+        ccfq = np.concatenate([ccfqs, np.array(ccfqs).sum(axis=0, keepdims=True)])
 
         if full_output:
             return ccf, ccfe, ccfq, kwargs
@@ -682,6 +449,7 @@ def calculate_s1d_ccf_parallel(s1dfile, rvarray, mask_file='ESPRESSO_G2.fits',
     """
     docs
     """
+    raise NotImplementedError
 
     hdu = fits.open(s1dfile)
 
@@ -707,26 +475,11 @@ def calculate_s1d_ccf_parallel(s1dfile, rvarray, mask_file='ESPRESSO_G2.fits',
     ## CCF mask
     mask_file = find_file(mask_file, ssh, verbose)
     mask = fits.open(mask_file)[1].data
-    mask_wave = mask['lambda'].astype(np.float64)
-    mask_contrast = mask['contrast'].astype(np.float64)
-    # mask_mask = np.ones_like(mask_wave, dtype=bool)
-    # # apparently it's not sorted... ?!
-    # s = np.argsort(mask_wave)
-    # mask_wave = mask_wave[s]
-    # mask_contrast = mask_contrast[s]
 
-    ccf, ccfe, ccfq = espdr_compute_CCF_numba_fast(wave_air, dll, flux, error,
-                                                   blaze, qual, rvarray,
-                                                   mask_wave, mask_contrast,
-                                                   BERV, BERVMAX,
-                                                   mask_width=mask_width)
-    # ccf, ccfe, ccfq = espdr_compute_CCF_fast(
-    #     wave_air, dll, flux, error, blaze, qual, rvarray,
-    #     mask, BERV, BERVMAX, mask_width=mask_width)
-
+    ccf, ccfe, ccfq = espdr_compute_CCF_fast(wave_air, dll, flux, error, blaze, qual, rvarray, mask,
+                                             BERV, BERVMAX, mask_width=mask_width)
     kw = None
     return ccf, ccfe, ccfq, kw
-
 
 
 
@@ -786,7 +539,6 @@ def calculate_ccf(filename, mask, rvarray, s1d=False, **kwargs):
     ccfq = ccfq.astype(np.int32)
 
     # read original S2D file
-    s2dhdu = fits.open(filename)
     s2dhdu_header = fits.getheader(filename)
     BJD = s2dhdu_header['ESO QC BJD']
 
@@ -805,14 +557,14 @@ def calculate_ccf(filename, mask, rvarray, s1d=False, **kwargs):
     phdr['HIERARCH ESO PRO TECH'] = 'ECHELLE '
     phdr['HIERARCH ESO PRO TYPE'] = 'REDUCED '
 
-    I = Indicators(rvarray, ccf[-1], ccfe[-1])
+    Ind = Indicators(rvarray, ccf[-1], ccfe[-1])
 
-    phdr['HIERARCH ESO QC CCF RV'] = I.RV
-    phdr['HIERARCH ESO QC CCF RV ERROR'] = I.RVerror
-    phdr['HIERARCH ESO QC CCF FWHM'] = I.FWHM
-    phdr['HIERARCH ESO QC CCF FWHM ERROR'] = I.FWHMerror
-    phdr['HIERARCH ESO QC CCF CONTRAST'] = I.contrast
-    # # phdr['HIERARCH ESO QC CCF CONTRAST ERROR'] = I.contrasterror # TODO
+    phdr['HIERARCH ESO QC CCF RV'] = Ind.RV
+    phdr['HIERARCH ESO QC CCF RV ERROR'] = Ind.RVerror
+    phdr['HIERARCH ESO QC CCF FWHM'] = Ind.FWHM
+    phdr['HIERARCH ESO QC CCF FWHM ERROR'] = Ind.FWHMerror
+    phdr['HIERARCH ESO QC CCF CONTRAST'] = Ind.contrast
+    # # phdr['HIERARCH ESO QC CCF CONTRAST ERROR'] = Ind.contrasterror # TODO
     # # 'ESO QC CCF FLUX ASYMMETRY' # TODO
 
     phdu = fits.PrimaryHDU(header=phdr)
@@ -839,3 +591,69 @@ def calculate_ccf(filename, mask, rvarray, s1d=False, **kwargs):
     hdul.writeto(ccf_file, overwrite=True, checksum=True)
 
     return ccf_file
+
+
+
+
+
+
+# @njit
+# def espdr_compute_CCF_numba_fast(ll: np.ndarray, dll: np.ndarray, flux: np.ndarray, error: np.ndarray,
+#                                  blaze: np.ndarray, quality: np.ndarray, RV_table: np.ndarray,
+#                                  mask_wave: np.ndarray, mask_contrast: np.ndarray,
+#                                  berv: float, bervmax: float, mask_width: float=0.5):
+#     c: float = 299792.458
+#     nx_s2d = flux.size
+#     # ny_s2d = 1  #! since this function computes only one order
+#     n_mask = mask_wave.size
+#     nx_ccf = len(RV_table)
+#     ccf_flux = np.zeros_like(RV_table)
+#     ccf_error = np.zeros_like(RV_table)
+#     ccf_quality = np.zeros_like(RV_table)
+#     dll2 = dll / 2.0  # cpl_image_divide_scalar_create(dll,2.);
+#     ll2 = ll - dll2  # cpl_image_subtract_create(ll,dll2);
+#     #? this mimics the pipeline (note that cpl_image_get indices start at 1)
+#     imin = 1
+#     imax = nx_s2d
+#     while (imin < nx_s2d and quality[imin - 1] != 0):
+#         imin += 1
+#     while (imax > 1 and quality[imax - 1] != 0):
+#         imax -= 1
+#     if imin >= imax:
+#         return
+#     #? note that cpl_image_get indices start at 1, hence the "-1"s
+#     llmin = ll[imin + 1 - 1] / (1 + berv / c) * (1 + bervmax / c) / (1 + RV_table[0] / c)
+#     llmax = ll[imax - 1 - 1] / (1 + berv / c) * (1 - bervmax / c) / (1 + RV_table[nx_ccf - 1] / c)
+#     imin, imax = 0, n_mask - 1
+#     #? turns out cpl_table_get indices start at 0...
+#     while (imin < n_mask and mask_wave[imin] < (llmin + 0.5 * mask_width / c * llmin)):
+#         imin += 1
+#     while (imax >= 0     and mask_wave[imax] > (llmax - 0.5 * mask_width / c * llmax)):
+#         imax -= 1
+#     for i in range(imin, imax + 1):
+#         #? cpl_array_get indices also start at 0
+#         llcenter = mask_wave[i] * (1. + RV_table[nx_ccf // 2] / c)
+#         index_center = 1
+#         while(ll[index_center-1] < llcenter): index_center += 1
+#         contrast = mask_contrast[i]
+#         w = contrast * contrast
+#         for j in range(0, nx_ccf):
+#             llcenter = mask_wave[i] * (1. + RV_table[j] / c)
+#             llstart = llcenter - 0.5 * mask_width / c * llcenter
+#             llstop = llcenter + 0.5 * mask_width / c * llcenter
+#             index1 = 1
+#             while(ll2[index1-1] < llstart): index1 += 1
+#             index2 = index1
+#             while (ll2[index2-1] < llcenter): index2 += 1
+#             index3 = index2
+#             while (ll2[index3-1] < llstop): index3 += 1;
+#             k = j
+#             for index in range(index1, index3):
+#                 ccf_flux[k] += w * flux[index-1] / blaze[index-1] * blaze[index_center-1]
+#             ccf_flux[k] += w * flux[index1 - 1 - 1] * (ll2[index1-1] - llstart) / dll[index1 - 1 - 1] / blaze[index1 - 1 - 1] * blaze[index_center - 1]
+#             ccf_flux[k] -= w * flux[index3 - 1 - 1] * (ll2[index3-1] - llstop) / dll[index3 - 1 - 1] / blaze[index3 - 1 - 1] * blaze[index_center - 1]
+#             ccf_error[k] += w * w * error[index2 - 1 - 1] * error[index2 - 1 - 1]
+#             ccf_quality[k] += quality[index2 - 1 - 1]
+#     # my_error = cpl_image_power(*CCF_error_RE,0.5);
+#     ccf_error = np.sqrt(ccf_error)
+#     return ccf_flux, ccf_error, ccf_quality
