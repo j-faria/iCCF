@@ -78,16 +78,37 @@ def BIS(x, y, down=(10, 40), up=(60, 90), full_output=False):
 
     Parameters
     ----------
-    rv : array
+    x : array
         The velocity values where the CCF is defined.
-    ccf : array
+    y : array
         The values of the CCF profile.
     down, up : tuples, optional
         Tuples defining the lower and upper regions of the profile used for the
         BIS calculation. Defaults are the original values from Queloz+(2001).
         Values should be given in percentage.
     full_output : boolean, optional
-        Return extra intermediate values. 
+        Return extra intermediate values.
+    
+    Returns
+    -------
+    BIS : float
+        The BIS value
+    
+    if full_output is True
+    
+    c : array
+        Coefficients of a Gaussian fit
+    bot : float
+        Absolute bottom of the CCF profile
+    ran : float
+        Range of the CCF profile
+    (bottom_limit1, bottom_limit2) : tuple
+    (top_limit1, top_limit2) : tuple
+        Absolute flux limits for the given percentage limits
+    fl1, fl2 : float
+        mid-point flux levels at the bottom and top
+    bisf: callable
+        Function which evaluates the bisector of the profile at a given depth
     """
     # check the limits
     assert 0 < down[0] < 100 and 0 < down[1] < 100 and down[0] < down[1]
