@@ -43,7 +43,7 @@ You can also clone the GitHub repository and install it yourself
 ```bash
 git clone https://github.com/j-faria/iCCF
 cd iCCF
-python setup.py install # (or better yet, develop)
+pip install -e .
 ```
 
 If you experience any problems during installation,
