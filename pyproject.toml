@@ -1,6 +1,6 @@
 [project]
 name = "iCCF"
-version = "0.3.15"
+version = "0.3.16"
 description = "Analysis of CCF profiles and activity indicators"
 authors = [
     {name = "João Faria", email = "joao.faria@unige.ch"},
