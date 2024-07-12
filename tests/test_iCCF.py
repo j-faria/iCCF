@@ -18,7 +18,17 @@ def test_properties(indicator):
     i.RV
     i.FWHM
 
-
 def test_read_spectral_format():
     from iCCF.chromatic import read_spectral_format
     _ = read_spectral_format()
+
+def test_find_mask():
+    from iCCF.utils import find_data_file
+
+    try:
+        find_data_file('ESPRESSO_G9.fits')
+    except FileNotFoundError as e:
+        assert False, f'Data file not found: {e}'
+
+    with pytest.raises(FileNotFoundError):
+        find_data_file('ESPRESSO_G99.fits')

@@ -13,7 +13,7 @@ from astropy.io import fits
 from tqdm import tqdm
 
 from .iCCF import Indicators
-from .utils import get_ncores
+from .utils import get_ncores, find_data_file
 
 
 def espdr_compute_CCF_fast(ll, dll, flux, error, blaze, quality, RV_table,
@@ -89,6 +89,14 @@ def espdr_compute_CCF_fast(ll, dll, flux, error, blaze, quality, RV_table,
     ccf_error = np.sqrt(ccf_error)
 
     return ccf_flux, ccf_error, ccf_quality
+
+
+def check_if_deblazed(s2dfile):
+    if 'S2D_BLAZE' in s2dfile:
+        return False
+    if 'S2D_A.fits' in s2dfile:
+        return True
+    
 
 
 def find_blaze(s2dfile, hdu=None):
@@ -205,6 +213,14 @@ def find_file(file, ssh=None, verbose=True):
             print(f'\tfound a similar file in current directory ({file})')
         return file
 
+    # try in iCCF/data
+    try:
+        f = find_data_file(file)
+        if verbose:
+            print('\tfound file in iCCF/data')
+        return f
+    except FileNotFoundError:
+        pass
 
     # try on the local machine
     try:
