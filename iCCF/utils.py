@@ -1,6 +1,7 @@
 import os
 import re
 import warnings
+import importlib.resources as resources
 from copy import copy
 import numpy as np
 from astropy.io import fits
@@ -89,7 +90,7 @@ def load_example_data():
     """ Load the example CCF stored in iCCF/example_data """
     file = os.path.join('example_data', 'CCF1.npy')
     try:
-        import importlib.resources as resources
+        
         path = os.path.join(resources.files('iCCF'), file)
         data = np.load(path)
     except AttributeError:
@@ -99,12 +100,15 @@ def load_example_data():
 
 def find_data_file(file):
     """ Find a file from iCCF/data """
-    import importlib.resources as resources
-    path = resources.files('iCCF') / 'data' / file
-    if path.exists():
-        return path
-    else:
-        raise FileNotFoundError(file)
+    try:
+        path = resources.files('iCCF') / 'data' / file
+        if path.exists():
+            return path
+    except AttributeError:
+        path = os.path.join(find_myself(), 'iCCF', 'data', file)
+        if os.path.exists(path):
+            return path
+    raise FileNotFoundError(file)
 
 
 def _get_hdul(fitsfile, **kwargs):
