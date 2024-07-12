@@ -75,7 +75,7 @@ def _parse_args_make_CCF():
     parser.add_argument('files', nargs='+', type=str, help='S2D files')
 
     help_mask = 'Mask (G2, G9, K6, M2, ...). '\
-                'A file called `ESPRESSO_[mask].fits` should exist.'
+                'A file called `INST_[mask].fits` should exist.'
     parser.add_argument('-m', '--mask', type=str, help=help_mask)
 
     parser.add_argument('-rv', type=str,
@@ -130,6 +130,8 @@ def make_CCF():
             start, end, step = map(float, args.rv.split(':'))
             rvarray = np.arange(start, end + step, step)
 
+        inst = header['INSTRUME']
+
         mask = args.mask
         if mask is None:
             try:
@@ -137,7 +139,7 @@ def make_CCF():
             except KeyError:
                 try:
                     mask = header['HIERARCH ESO PRO REC1 CAL25 NAME']
-                    if 'ESPRESSO_' in mask:
+                    if inst + '_' in mask:
                         mask = mask[9:11]
                 except KeyError:
                     print('Could not find CCF mask in S2D file.',
@@ -145,18 +147,12 @@ def make_CCF():
                     sys.exit(1)
             print('Using mask from S2D file:', mask)
 
-            if not os.path.exists(f'ESPRESSO_{mask}.fits'):
-                print(f'File "ESPRESSO_{mask}.fits" not found.')
+            if not os.path.exists(f'{inst}_{mask}.fits'):
+                print(f'File "{inst}_{mask}.fits" not found.')
                 sys.exit(1)
 
-        inst = header['INSTRUME']
-
-        if inst == 'ESPRESSO':
-            meta_ESPRESSO.calculate_ccf(file, mask=mask, rvarray=rvarray,
-                                        ncores=args.ncores, ssh=args.ssh)
-
-        elif inst == 'HARPS':
-            print('dont know what to do with HARPS! sorry')
+        meta_ESPRESSO.calculate_ccf(file, mask=mask, rvarray=rvarray,
+                                    ncores=args.ncores, ssh=args.ssh)
 
 
 def _parse_args_check_CCF():
