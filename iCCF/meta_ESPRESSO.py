@@ -259,7 +259,7 @@ def find_file(file, ssh=None, verbose=True):
 
 
 
-def _dowork(args, debug=False):
+def _dowork(args):
     order, kwargs = args
     data = kwargs['data']
     dll = kwargs['dll'][order]
@@ -284,13 +284,16 @@ def _dowork(args, debug=False):
     ccf, ccfe, ccfq = espdr_compute_CCF_fast(ll, dll, y, ye, blaze, quality, rvarray, mask,
                                              BERV, BERVMAX, mask_width=mask_width)
 
+    assert np.isfinite(ccf).all()
+    assert np.isfinite(ccfe).all()
+
     return ccf, ccfe, ccfq
 
 
 def calculate_s2d_ccf_parallel(s2dfile, rvarray, order='all',
                                mask_file='ESPRESSO_G2.fits', mask_width=0.5,
                                ncores=None, verbose=True, full_output=False,
-                               ignore_blaze=False, skip_flux_corr=False,
+                               ignore_blaze=False, do_flux_corr=False,
                                ssh=None):
     """
     Calculate the CCF between a 2D spectra and a mask. This function can lookup
@@ -319,8 +322,8 @@ def calculate_s2d_ccf_parallel(s2dfile, rvarray, order='all',
     ignore_blaze : bool, default True
         If True, the function completely ignores any blaze correction and takes
         the flux values as is from the S2D file
-    skip_flux_corr : bool, default False
-        If True, skip the flux correction step
+    do_flux_corr : bool, default False
+        Whether to perform the flux correction step
     ssh : str
         SSH information in the form "user@host" to look for required calibration
         files in a server. If the files are not found locally, the function
@@ -379,11 +382,7 @@ def calculate_s2d_ccf_parallel(s2dfile, rvarray, order='all',
     with fits.open(mask_file) as hdu_mask:
         mask = hdu_mask[1].data
 
-    if skip_flux_corr:
-        if verbose:
-            print('No flux correction performed')
-        corr_model = np.ones(norders)
-    else:
+    if do_flux_corr:
         # get the flux correction stored in the S2D file
         keyword = 'HIERARCH ESO QC ORDER%d FLUX CORR'
         flux_corr = np.array(
@@ -405,6 +404,10 @@ def calculate_s2d_ccf_parallel(s2dfile, rvarray, order='all',
             
             print("Flux correction performed with min/max values:", end=' ')
             print(f'{flux_corr.min():.6f}/{flux_corr.max():.6f}')
+    else:
+        if verbose:
+            print('No flux correction performed')
+        corr_model = np.ones(norders)
 
     kwargs = {}
     kwargs['data'] = [None] + [hdu[i].data for i in range(1, 6)]
@@ -439,6 +442,9 @@ def calculate_s2d_ccf_parallel(s2dfile, rvarray, order='all',
 
     if verbose:
         print(f'done in {end - start:.2f} seconds')
+
+    assert np.isfinite(ccfs).all()
+    assert np.isfinite(ccfes).all()
 
     if return_sum:
         # sum the CCFs over the orders
@@ -517,9 +523,9 @@ def calculate_ccf(filename, mask, rvarray, s1d=False, **kwargs):
         RV array where to calculate the CCF
     s1d : bool, default False
         Is it an S1D file? By default, assume it's an S2D.
-    ignore_blaze : bool, default True
-        If True, the function completely ignores any blaze correction and takes
-        the flux values as is from the S2D file
+    # ignore_blaze : bool, default True
+    #     If True, the function completely ignores any blaze correction and takes
+    #     the flux values as is from the S2D file
     clobber : bool, default True
         Whether to replace output CCF file even if it exists
     verbose : bool, default True
@@ -528,12 +534,12 @@ def calculate_ccf(filename, mask, rvarray, s1d=False, **kwargs):
         Keyword arguments passed directly to `calculate_s2d_ccf_parallel`
     """
 
+    # read original S2D file
     filename = os.path.basename(filename)
+    s2dhdu_header = fits.getheader(filename)
+
     end = f'_CCF_{mask}_iCCF.fits'
-    try:
-        ccf_file = filename[:filename.index('_')] + end
-    except ValueError:
-        ccf_file = os.path.splitext(filename)[0] + end
+    ccf_file = os.path.splitext(filename)[0] + end
 
     clobber = kwargs.pop('clobber', True)
     if os.path.exists(ccf_file) and not clobber:
@@ -544,6 +550,9 @@ def calculate_ccf(filename, mask, rvarray, s1d=False, **kwargs):
     instrument = getINSTRUMENT(filename)
     mask_file = f"{instrument}_{mask}.fits"
     kwargs['mask_file'] = mask_file
+
+    flux_corr = bool(s2dhdu_header.get('HIERARCH ESO QC SCIRED FLUX CORR CHECK'))
+    kwargs['do_flux_corr'] = flux_corr
 
     if s1d or 'S1D' in filename:
         ccf, ccfe, ccfq, kw = calculate_s1d_ccf_parallel(
@@ -557,11 +566,7 @@ def calculate_ccf(filename, mask, rvarray, s1d=False, **kwargs):
     ccfe = ccfe.astype(np.float32)
     ccfq = ccfq.astype(np.int32)
 
-    # read original S2D file
-    s2dhdu_header = fits.getheader(filename)
     BJD = s2dhdu_header['ESO QC BJD']
-
-
     phdr = fits.Header()
     phdr['OBJECT'] = s2dhdu_header['OBJECT']
     phdr['HIERARCH ESO RV START'] = rvarray[0]
