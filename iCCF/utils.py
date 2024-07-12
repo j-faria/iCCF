@@ -89,7 +89,7 @@ def load_example_data():
     """ Load the example CCF stored in iCCF/example_data """
     try:
         import importlib.resources as resources
-        path = os.path.join(resources.files(__name__), 'example_data/CCF1.npy')
+        path = os.path.join(resources.files('iCCF'), 'example_data/CCF1.npy')
         data = np.load(path)
     except ModuleNotFoundError:
         path = os.path.join(find_myself(), 'iCCF/example_data/CCF1.npy')
@@ -99,7 +99,7 @@ def load_example_data():
 def find_data_file(file):
     """ Find a file from iCCF/data """
     import importlib.resources as resources
-    path = resources.files(__name__) / 'data' / file
+    path = resources.files('iCCF') / 'data' / file
     if path.exists():
         return path
     else:
