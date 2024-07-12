@@ -185,9 +185,15 @@ def check_CCF():
     print('    :', i2.FWHM)
 
     if args.plot:
-        _, axs = plt.subplots(2, 1, constrained_layout=True, height_ratios=(3, 1))
-        i1.plot(axs[0])
-        i2.plot(axs[0])
-        axs[1].plot(i1.rv, i1.ccf - i2.ccf, 'k.')
-        axs[1].set(xlabel='RV [km/s]', ylabel='CCF difference')
+        if i1.rv.size != i2.rv.size:
+            print('Warning: RV arrays are not the same size')
+            _, ax = plt.subplots(1, 1, constrained_layout=True)
+            i1.plot(ax)
+            i2.plot(ax)
+        else:
+            _, axs = plt.subplots(2, 1, constrained_layout=True, height_ratios=(3, 1))
+            i1.plot(axs[0])
+            i2.plot(axs[0])
+            axs[1].plot(i1.rv, i1.ccf - i2.ccf, 'k.')
+            axs[1].set(xlabel='RV [km/s]', ylabel='CCF difference')
         plt.show()
