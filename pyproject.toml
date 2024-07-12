@@ -1,6 +1,6 @@
 [project]
 name = "iCCF"
-version = "0.3.12"
+version = "0.3.13"
 description = "Analysis of CCF profiles and activity indicators"
 authors = [
     {name = "João Faria", email = "joao.faria@unige.ch"},
@@ -28,11 +28,17 @@ Homepage = "https://j-faria.github.io/iCCF/"
 Repository = "https://github.com/j-faria/iCCF"
 Issues = "https://github.com/j-faria/iCCF/issues"
 
+[project.scripts]
+iccf-make-ccf = "iCCF.scripts:make_CCF"
+iccf-check-ccf = "iCCF.scripts:check_CCF"
+
+
 [tool.setuptools]
 packages = ['iCCF']
 
 [tool.setuptools.package-data]
 iCCF = ['example_data/*.npy', 'data/*']
+
 
 [build-system]
 requires = ["setuptools", "wheel", "numpy"]
