@@ -12,6 +12,8 @@ import numpy as np
 from astropy.io import fits
 from tqdm import tqdm
 
+from iCCF.keywords import getINSTRUMENT
+
 from .iCCF import Indicators
 from .utils import get_ncores, find_data_file
 
@@ -509,7 +511,7 @@ def calculate_ccf(filename, mask, rvarray, s1d=False, **kwargs):
     filename : str
         The name of the S2D file
     mask : str
-        The identifier for the CCF mask to use. A file 'ESPRESSO_mask.fits'
+        The identifier for the CCF mask to use. A file 'INST_mask.fits'
         should exist (not necessarily in the current directory)
     rvarray : array
         RV array where to calculate the CCF
@@ -539,7 +541,8 @@ def calculate_ccf(filename, mask, rvarray, s1d=False, **kwargs):
             print(f'Output CCF file ({ccf_file}) exists')
         return ccf_file
 
-    mask_file = f"ESPRESSO_{mask}.fits"
+    instrument = getINSTRUMENT(filename)
+    mask_file = f"{instrument}_{mask}.fits"
     kwargs['mask_file'] = mask_file
 
     if s1d or 'S1D' in filename:
@@ -567,8 +570,8 @@ def calculate_ccf(filename, mask, rvarray, s1d=False, **kwargs):
     phdr['HIERARCH ESO QC BERV'] = kw['BERV']
     phdr['HIERARCH ESO QC BERVMAX'] = kw['BERVMAX']
     phdr['HIERARCH ESO QC CCF MASK'] = mask
-    phdr['INSTRUME'] = 'ESPRESSO'
-    phdr['HIERARCH ESO INS MODE'] = 'ESPRESSO'
+    phdr['INSTRUME'] = s2dhdu_header['INSTRUME']
+    phdr['HIERARCH ESO INS MODE'] = s2dhdu_header['HIERARCH ESO INS MODE']
     phdr['HIERARCH ESO PRO SCIENCE'] = True
     phdr['HIERARCH ESO PRO TECH'] = 'ECHELLE '
     phdr['HIERARCH ESO PRO TYPE'] = 'REDUCED '
