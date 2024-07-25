@@ -1,8 +1,9 @@
-from typing import List, Union, Optional
+from typing import List, Optional
 
 import numpy as np
 from numpy import exp, log, sqrt
 from scipy import optimize
+from scipy.interpolate import CubicSpline
 
 from .utils import numerical_gradient
 
@@ -212,12 +213,12 @@ def FWHMerror(rv, ccf, eccf):
     ccf : array
         The values of the CCF profile.
     eccf : array
-        The errors on each value of the CCF profile.
+        The uncertainties on each value of the CCF profile.
     """
     return 2.0 * RVerror(rv, ccf, eccf)
 
 
-def contrast(rv, ccf):
+def contrast(rv, ccf, eccf=None, error=False, **kwargs):
     """
     Calculate the contrast (depth, measured in percentage) of the CCF.
     
@@ -227,6 +228,22 @@ def contrast(rv, ccf):
         The velocity values where the CCF is defined.
     ccf : array
         The values of the CCF profile.
+    eccf : array
+        The uncertainties on each value of the CCF profile.
     """
-    A, _, _, continuum = gaussfit(rv, ccf)
-    return abs(100 * A / continuum)
+    A, _, _, continuum = gaussfit(rv, ccf, yerr=eccf, **kwargs)
+    if not error:
+        return abs(100 * A / continuum)
+    else:
+        ## error propagation
+        # (A, _, _, continuum), (sA, _, _, sc) = gaussfit(rv, ccf, return_errors=True)
+        # return abs(100 * (A / continuum) * np.hypot(sA / A, sc / continuum))
+        ## as in the ESPRESSO pipeline
+        fwhm = FWHM(rv, ccf, eccf, **kwargs)
+        snr = RVerror(rv, ccf, eccf)  # 1.0 / sqrt(ccf_sum)
+        return abs(snr * 2 / fwhm * A);
+
+
+def rv_shift(rv, ccf, radial_velocity):
+    """ Shift a CCF profile by `radial_velocity`. """
+    return CubicSpline(rv, ccf)(rv - radial_velocity)
