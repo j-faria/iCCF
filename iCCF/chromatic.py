@@ -227,7 +227,7 @@ class chromaticRV():
     @cached_property
     def time(self):
         """ BJD of observations """
-        return np.fromiter((i.bjd for i in self.I), np.float, self.n)
+        return np.fromiter((i.bjd for i in self.I), float, self.n)
 
     @property
     def blueRV(self):
@@ -252,11 +252,11 @@ class chromaticRV():
 
     @property
     def fullRV(self):
-        return np.fromiter((i.RV for i in self.I), np.float, self.n)
+        return np.fromiter((i.RV for i in self.I), float, self.n)
 
     @property
     def fullRVerror(self):
-        return np.fromiter((i.RVerror for i in self.I), np.float, self.n)
+        return np.fromiter((i.RVerror for i in self.I), float, self.n)
 
 
     def bin(self, night_indices):

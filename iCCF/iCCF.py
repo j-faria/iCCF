@@ -452,8 +452,8 @@ class Indicators:
                     self.individual_RVerror, fmt='o', label='individual RV')
         ax.axhline(self.RV, color='darkgreen', ls='--', label='final RV')
 
-        m = np.full_like(orders, self.RV, dtype=np.float)
-        e = np.full_like(orders, self.RVerror, dtype=np.float)
+        m = np.full_like(orders, self.RV, dtype=float)
+        e = np.full_like(orders, self.RVerror, dtype=float)
         ax.fill_between(orders, m-e, m+e, color='g', alpha=0.3)
 
         ax.legend()
