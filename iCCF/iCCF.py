@@ -295,10 +295,10 @@ class Indicators:
         """ The full width at half maximum of the CCF """
         eccf = self.eccf if self._use_errors else None
         try:
-            return FWHMcalc(self.rv, self.ccf, self.eccf,
+            return FWHMcalc(self.rv, self.ccf, eccf,
                             guess_rv=self.pipeline_RV)
         except ValueError:
-            return FWHMcalc(self.rv, self.ccf, self.eccf)
+            return FWHMcalc(self.rv, self.ccf, eccf)
 
     @property
     def FWHMerror(self):
@@ -324,7 +324,13 @@ class Indicators:
     @cached_property
     def contrast(self):
         """ The contrast (depth) of the CCF, measured in percentage """
-        return contrast(self.rv, self.ccf)
+        return contrast(self.rv, self.ccf, self.eccf)
+
+    @cached_property
+    def contrast_error(self):
+        """ Uncertainty on the contrast (depth) of the CCF, measured in percentage """
+        return contrast(self.rv, self.ccf, self.eccf, error=True)
+
 
     @property
     def all(self):
