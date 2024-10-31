@@ -3,8 +3,8 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-import os
 import sys
+from glob import glob
 import argparse
 import textwrap
 
@@ -73,6 +73,8 @@ def _parse_args_make_CCF():
 
     parser.add_argument('files', nargs='+', type=str, help='S2D files')
 
+    parser.add_argument('-o', '--output', type=str, help='Output file name')
+
     help_mask = 'Mask (G2, G9, K6, M2, ...). '\
                 'A file called `INST_[mask].fits` should exist.'
     parser.add_argument('-m', '--mask', type=str, help=help_mask)
@@ -85,10 +87,10 @@ def _parse_args_make_CCF():
                   f'default is all available ({default_ncores})'
     parser.add_argument('--ncores', type=int, help=help_ncores)
 
-    help_ssh = 'An SSH user and host with which the script will try to find' \
-               'required calibration files. It uses the `locate` and `scp`' \
-               'commands to find and copy the file from the host'
-    parser.add_argument('--ssh', type=str, metavar='user@host', help=help_ssh)
+    # help_ssh = 'An SSH user and host with which the script will try to find' \
+    #            'required calibration files. It uses the `locate` and `scp`' \
+    #            'commands to find and copy the file from the host'
+    # parser.add_argument('--ssh', type=str, metavar='user@host', help=help_ssh)
 
     args = parser.parse_args()
     return args, parser
@@ -105,6 +107,9 @@ def make_CCF():
     else:
         files = [line.strip() for line in sys.stdin]
 
+    if len(files) == 1 and '*' in files[0]:
+        files = glob(files[0])
+
     for file in files:
         print('Calculating CCF for', file)
         header = fits.open(file)[0].header
@@ -119,11 +124,10 @@ def make_CCF():
                 step = header['HIERARCH ESO RV STEP']
                 end = OBJ_RV + (OBJ_RV - start)
                 print('Using RV array from S2D file:',
-                        f'{start} : {end} : {step} km/s')
+                      f'{start} : {end} : {step} km/s')
                 rvarray = np.arange(start, end + step, step)
             except KeyError:
-                print('Could not find RV start and step in S2D file.',
-                        'Please use the -rv argument.')
+                print('Could not find RV start and step in S2D file. Please use the -rv argument.')
                 sys.exit(1)
         else:
             start, end, step = map(float, args.rv.split(':'))
@@ -141,14 +145,13 @@ def make_CCF():
                     if inst + '_' in mask:
                         mask = mask[9:11]
                 except KeyError:
-                    print('Could not find CCF mask in S2D file.',
-                            'Please use the -m argument.')
+                    print('Could not find CCF mask in S2D file. Please use the -m argument.')
                     sys.exit(1)
             print('Using mask from S2D file:', mask)
 
-            if not os.path.exists(f'{inst}_{mask}.fits'):
-                print(f'File "{inst}_{mask}.fits" not found.')
-                sys.exit(1)
+            # if not os.path.exists(f'{inst}_{mask}.fits'):
+            #     print(f'File "{inst}_{mask}.fits" not found.')
+            #     sys.exit(1)
 
         meta.calculate_ccf(file, mask=mask, rvarray=rvarray,
                            ncores=args.ncores, output=args.output,
@@ -170,6 +173,7 @@ def _parse_args_check_CCF():
     return args, parser
 
 def check_CCF():
+    from .utils import float_exponent
     args, _ = _parse_args_check_CCF()
 
     print('Comparing CCFs from')
@@ -179,11 +183,29 @@ def check_CCF():
 
     i1 = iCCF.Indicators.from_file(args.file1)
     i2 = iCCF.Indicators.from_file(args.file2)
-    print(f'  RV: {i1.RV} ({i1.pipeline_RV})')
+
+    print('Absolute differences:')
+    a = i1._SCIDATA - i2._SCIDATA
+    print(f'CCF1 - CCF2       : max={np.nanmax(a):.2e}, mean={np.nanmean(a):.2e}')
+    print('Relative differences:')
+    with np.errstate(invalid='ignore', divide='ignore'):
+        r = a / i1._SCIDATA
+    print(f'(CCF1 - CCF2)/CCF1: max={np.nanmax(r):.2e}, mean={np.nanmean(r):.2e}')
+    print()
+    print()
+    print(f'  RV: {i1.RV} (pipe RV={i1.pipeline_RV})')
     print('    :', i2.RV)
+    a, b = str(i1.RV), str(i2.RV)
+    if a != b:
+        size = [i for i,(_a, _b) in enumerate(zip(a, b)) if _a != _b][0]
+        print('     ' + (' ' * (size+1)) + '^')
     print()
     print(f'FWHM: {i1.FWHM} ({i1.pipeline_FWHM})')
     print('    :', i2.FWHM)
+    a, b = str(i1.FWHM), str(i2.FWHM)
+    if a != b:
+        size = [i for i,(_a, _b) in enumerate(zip(a, b)) if _a != _b][0]
+        print('     ' + (' ' * (size+1)) + '^')
 
     if args.plot:
         if i1.rv.size != i2.rv.size:
