@@ -9,9 +9,8 @@ import argparse
 import textwrap
 
 from . import iCCF
-from . import meta_ESPRESSO
+from . import meta
 from .utils import get_ncores
-# from .meta_ESPRESSO import calculate_ccf as calculate_ccf_ESPRESSO
 from astropy.io import fits
 
 
@@ -151,8 +150,10 @@ def make_CCF():
                 print(f'File "{inst}_{mask}.fits" not found.')
                 sys.exit(1)
 
-        meta_ESPRESSO.calculate_ccf(file, mask=mask, rvarray=rvarray,
-                                    ncores=args.ncores, ssh=args.ssh)
+        meta.calculate_ccf(file, mask=mask, rvarray=rvarray,
+                           ncores=args.ncores, output=args.output,
+                           # ssh=args.ssh
+                           )
 
 
 def _parse_args_check_CCF():

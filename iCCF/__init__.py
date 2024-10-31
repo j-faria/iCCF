@@ -1,4 +1,7 @@
-""" iCCF """
+"""
+Analysis tools for common line profile indicators measured from the
+cross-correlation function (CCF).
+"""
 
 from .version import __version__
 
@@ -7,12 +10,11 @@ from .gaussian import gauss, gaussfit, RV, FWHM, contrast
 from .bigaussian import bigauss, bigaussfit
 from .vspan import vspan
 from .wspan import wspan
-from .meta import makeCCF
-from .meta_ESPRESSO import calculate_ccf as calculate_ccf_ESPRESSO
+from .meta import calculate_ccf
 from . import utils
 
 from .chromatic import chromaticRV
 
 from .iCCF import EPS, nEPS
-from .iCCF import Indicators, indicators_from_files
+from .iCCF import Indicators
 from_file = Indicators.from_file
