@@ -99,8 +99,7 @@ class Indicators:
         return 1
 
     @classmethod
-    def from_file(cls, file, hdu_number=1, data_index=-1, sort_bjd=True,
-                  guess_instrument=True, **kwargs):
+    def from_file(cls, file, hdu_number=1, data_index=-1, sort_bjd=True, **kwargs):
         """
         Create an `Indicators` object from one or more fits files.
 
@@ -116,9 +115,6 @@ class Indicators:
         sort_bjd : bool (default True)
             If True and filename is a list of files, sort them by BJD before 
             reading
-        guess_instrument : bool (default False)
-            If True, try to guess the instrument and adjust both hdu_number
-            and data_index accordingly
         """
 
         if isinstance(file, list) and len(file) == 1:
@@ -133,8 +129,7 @@ class Indicators:
             for f in tqdm(file):
                 try:
                     indicators.append(
-                        cls.from_file(f, hdu_number, data_index, sort_bjd,
-                                      guess_instrument, **kwargs))
+                        cls.from_file(f, hdu_number, data_index, sort_bjd, **kwargs))
                 except Exception as e:
                     print(f'ERROR reading "{f}"')
                     print(e)
@@ -157,32 +152,7 @@ class Indicators:
             port = kwargs.pop('port', 22)
             verbose = kwargs.pop('verbose', False)
 
-            if guess_instrument:
-                # find the instrument and adjust hdu_number / data_index
-                hdul = _get_hdul(file, USER=user, HOST=host,
-                                 port=port, verbose=verbose)
-                try:
-                    inst = getINSTRUMENT(file, hdul)
-
-                    if inst == 'ESPRESSO':
-                        hdu_number, data_index = 1, -1
-
-                    if inst == 'HARPS':
-                        hdu_number, data_index = 0, -1
-
-                    if inst == 'CORALIE':
-                        hdu_number, data_index = 0, -1
-
-                except KeyError:
-                    print('Cannot find instrument in {file}')
-
-                rv, hdul = getRVarray(file, hdul=hdul, return_hdul=True,
-                                      USER=user, HOST=host)
-
-            else:
-                # just try reading it
-                rv, hdul = getRVarray(file, return_hdul=True, USER=user,
-                                      HOST=host)
+            rv, hdul = getRVarray(file, return_hdul=True, USER=user, HOST=host)
 
             ccf = hdul[hdu_number].data[data_index, :]
             try:
