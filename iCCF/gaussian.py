@@ -48,6 +48,18 @@ def _gauss_initial_guess(x, y):
     return p0
 
 
+def _gauss_initial_guess_pipeline(x, y):
+    """ Initial values for Gaussian parameters, as implemented in the ESPRESSO pipepline """
+    c = np.max(y)
+    fwhm = np.ptp(x) / 3
+    x0 = x[y.argmin()]
+    # ind[j] = (x0[j] - data->x[0])/(data->x[n-1] - data->x[0])*n;
+    # not sure if int conversion is the same as in C
+    ind = int((x0-x[0]) / (np.ptp(x)) * x.size)
+    k = y[ind] - c
+    return [k, x0, fwhm2sig(fwhm), c]
+
+
 def gaussfit(x: np.ndarray,
              y: np.ndarray,
              p0: Optional[List] = None,
@@ -76,6 +88,8 @@ def gaussfit(x: np.ndarray,
             as Jacobian in the fit. If False, the Jacobian will be estimated.
         guess_rv (float):
             Initial guess for the RV (x0)
+        **kwargs:
+            Keyword arguments passed to `scipy.optimize.curve_fit`
 
     Returns:
         p (array):
@@ -85,44 +99,15 @@ def gaussfit(x: np.ndarray,
             (only if `return_errors=True`)
     """
     if (y == 0).all():
-        return np.nan * np.ones(4)
+        return np.full(4, np.nan)
 
-    if yerr is None:
-        f = lambda p, x, y: gauss(x, p) - y
-    else:
-        f = lambda p, x, y, yerr: ((gauss(x, p) - y) / yerr)
-
-    if use_deriv:
-        df = lambda p, x, *_: _gauss_partial_deriv(x, p)
-    else:
-        df = None
+    x = x.astype(np.float64)
+    y = y.astype(np.float64)
 
     if p0 is None:
         p0 = _gauss_initial_guess(x, y)
     if guess_rv is not None:
         p0[1] = guess_rv
-
-    # if yerr is None:
-    #     args = (x, y)
-    # else:
-    #     args = (x, y, yerr)
-
-    # result = optimize.leastsq(f, p0, args=args, Dfun=df, full_output=True)
-    # pfit, pcov, infodict, errmsg, success = result
-    # # return result
-    # pfit[2] = abs(pfit[2])  # positive sigma
-
-    # if return_errors:
-    #     if yerr is None:
-    #         s_sq = (f(pfit, x, y)**2).sum() / (y.size - pfit.size)
-    #     else:
-    #         s_sq = (f(pfit, x, y, yerr)**2).sum() / (y.size - pfit.size)
-    #     print(s_sq)
-    #     pcov = pcov * s_sq
-    #     errors = np.sqrt(np.diag(pcov))
-    #     return pfit, errors
-    # else:
-    #     return pfit
 
     f = lambda x, *p: gauss(x, p)
     if use_deriv:
@@ -130,11 +115,21 @@ def gaussfit(x: np.ndarray,
     else:
         df = None
 
-    pfit, pcov = optimize.curve_fit(f, x, y, p0=p0, sigma=yerr, jac=df)
+    pfit, pcov, *_ = optimize.curve_fit(f, x, y, p0=p0, sigma=yerr, jac=df,
+                                        xtol=1e-12, ftol=1e-14, check_finite=True, **kwargs)
+
+    if 'full_output' in kwargs:
+            infodict = _
 
     if return_errors:
         errors = np.sqrt(np.diag(pcov))
+        if 'full_output' in kwargs:
+            return pfit, errors, infodict
         return pfit, errors
+
+    if 'full_output' in kwargs:
+        return pfit, infodict
+
     return pfit
 
 
