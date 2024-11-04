@@ -1,7 +1,9 @@
 import os
+import sys
 import re
 import warnings
 import importlib.resources as resources
+from contextlib import contextmanager
 from copy import copy
 import numpy as np
 from astropy.io import fits
@@ -27,6 +29,29 @@ def get_ncores():
         import multiprocessing
         ncores = multiprocessing.cpu_count()
     return ncores
+
+
+def float_exponent(f):
+    return int(np.floor(np.log10(abs(f)))) if f != 0 else 0
+
+def float_mantissa(f):
+    return f / 10**float_exponent(f)
+
+
+def one_line_warning(message, category, filename, lineno, line=None):
+    return f'{filename}:{lineno}: {category.__name__}: {message}\n'
+
+@contextmanager
+def disable_exception_traceback():
+    if hasattr(sys, 'tracebacklimit'):
+        old_tb_limit = sys.tracebacklimit
+        sys.tracebacklimit = 0
+        yield
+        sys.tracebacklimit = old_tb_limit
+    else:
+        sys.tracebacklimit = 0
+        yield
+        delattr(sys, 'tracebacklimit')
 
 
 # from https://stackoverflow.com/a/30141358/1352183
