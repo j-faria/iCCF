@@ -14,7 +14,7 @@ class Mask:
         self.mask_name = mask
         self.instrument = instrument
 
-        mask_file = f'{instrument}_{mask}.fits'
+        mask_file = self._mask_file = f'{instrument}_{mask}.fits'
 
         if not os.path.exists(mask_file):
             try:
@@ -28,11 +28,25 @@ class Mask:
         self._wavelength = self.wavelength.copy()
         self._contrast = self.contrast.copy()
 
+    @classmethod
+    def from_arrays(cls, wavelength, contrast, name=None, instrument=None):
+        self = cls.__new__(cls)
+        self.wavelength = wavelength
+        self.contrast = contrast
+        self._wavelength = self.wavelength.copy()
+        self._contrast = self.contrast.copy()
+        self.mask_name = name or 'unnamed'
+        self.instrument = None
+        return self
+
+
     @property
     def nlines(self):
         return self.wavelength.size
     
     def __repr__(self):
+        if self.instrument is None:
+            return f'Mask({self.mask_name}, {self.nlines} lines)'
         return f'Mask({self.mask_name}, {self.instrument}, {self.nlines} lines)'
 
     def __getitem__(self, key):
@@ -75,7 +89,8 @@ class Mask:
         self.wavelength = self._wavelength
         self.contrast = self._contrast
 
-    def plot(self, ax=None, rv=0, down=False, factor=1, show_original=True, **kwargs):
+    def plot(self, ax=None, rv=0, down=False, factor=1, show_original=True, norm=False,
+             **kwargs):
         if ax is None:
             fig, ax = plt.subplots(figsize=(8, 4), constrained_layout=True)
         else:
@@ -83,8 +98,12 @@ class Mask:
         
         if down:
             a, b = -self.contrast * factor, 0
+            if norm:
+                a /= self.contrast.max()
         else:
             a, b = 0, self.contrast * factor
+            if norm:
+                b /= self.contrast.max()
 
         w = doppler_shift_wave(self.wavelength, rv)
         ax.vlines(w, a, b, alpha=0.8, **kwargs, 
@@ -98,3 +117,4 @@ class Mask:
 
         ax.legend()
         ax.set(xlabel=r'wavelength [$\AA$]', ylabel='contrast')
+        return fig, ax
