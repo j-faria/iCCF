@@ -5,13 +5,7 @@ import matplotlib.pyplot as plt
 from scipy.optimize import brentq
 from scipy.interpolate import InterpolatedUnivariateSpline
 
-try:
-    from PyAstronomy.pyasl import intep
-    intep_available = True
-except ImportError:
-    intep_available = False
-
-from .gaussian import gaussfit
+from .gaussian import gaussfit, gauss
 
 
 def bisector(x, y, center='min', k=2):
@@ -36,9 +30,10 @@ def bisector(x, y, center='min', k=2):
         # k-th order spline interpolation
         spl = InterpolatedUnivariateSpline(x, y, k=k)
     elif k == 'intep':
-        if not intep_available:
-            raise ImportError(
-                "To use 'intep', please install the PyAstronomy package")
+        try:
+            from PyAstronomy.pyasl import intep
+        except ImportError:
+            raise ImportError("To use 'intep', please install the PyAstronomy package")
         spl = partial(intep, x, y)
     else:
         raise ValueError('In `bisector`, k should be integer or "intep".')
