@@ -371,6 +371,11 @@ def calculate_s2d_ccf_parallel(s2dfile, rvarray, mask, mask_width=0.5, order='al
     BERV = hdu[0].header['HIERARCH ESO QC BERV']
     BERVMAX = hdu[0].header['HIERARCH ESO QC BERVMAX']
 
+    if verbose:
+        print(f'Mask width: {mask_width}')
+        print(f'BERVMAX: {BERVMAX} km/s')
+        print(f'BERV: {BERV} km/s')
+
     # find and read the blaze file
     if ignore_blaze:
         if verbose:
@@ -440,6 +445,7 @@ def calculate_s2d_ccf_parallel(s2dfile, rvarray, mask, mask_width=0.5, order='al
         if verbose:
             print('No flux correction performed')
         corr_model = np.ones(norders)
+
 
     kwargs = {}
     kwargs['data'] = [None] + [hdu[i].data for i in range(1, 6)]
@@ -609,10 +615,14 @@ def calculate_ccf(filename, mask=None, rvarray=None, **kwargs):
         return ccf_file
 
     if rvarray is None:
-        WINDOW = 20  # km/s
+        try:
+            OBJ_RV = s2dhdu_header['HIERARCH ESO OCS OBJ RV']
+        except KeyError:
+            OBJ_RV = s2dhdu_header['HIERARCH ESO TEL TARG RADVEL']
         start = s2dhdu_header['HIERARCH ESO RV START']
         step = s2dhdu_header['HIERARCH ESO RV STEP']
-        rvarray = np.arange(start, start + 2 * WINDOW + step, step)
+        end = OBJ_RV + (OBJ_RV - start)
+        rvarray = np.arange(start, end + step, step)
 
     flux_corr = bool(s2dhdu_header.get('HIERARCH ESO QC SCIRED FLUX CORR CHECK'))
     kwargs['do_flux_corr'] = flux_corr
