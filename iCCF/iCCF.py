@@ -50,7 +50,7 @@ def rdb_names(names):
 
 
 class Indicators:
-    """ Class to hold CCF indicators """
+    """ Class to hold CCFs and CCF indicators """
     def __init__(self, rv, ccf, eccf=None, RV_on=True, FWHM_on=True,
                  BIS_on=True, Vspan_on=True, Wspan_on=True, contrast_on=True,
                  BIS_HARPS=False):
@@ -142,11 +142,11 @@ class Indicators:
         # just one file
         elif isinstance(file, str):
 
-            for notccf in ('S1D', 'S2D'):
-                if notccf in file:
-                    msg = f"filename {file} contains '{notccf}', "\
-                           "are you sure it contains a CCF?"
-                    no_stack_warning(msg)
+            # for notccf in ('S1D', 'S2D'):
+            #     if notccf in file:
+            #         msg = f"filename {file} contains '{notccf}', "\
+            #                "are you sure it contains a CCF?"
+            #         no_stack_warning(msg)
 
             user, host = kwargs.pop('USER', None), kwargs.pop('HOST', None)
             port = kwargs.pop('port', 22)
@@ -182,6 +182,10 @@ class Indicators:
             raise ValueError(
                 'Input to `from_file` should be a string or list of strings.')
 
+    @property
+    def norders(self):
+        return self._SCIDATA.shape[0] - 1
+
     @cached_property
     def bjd(self):
         """ Barycentric Julian Day when the observation was made """
@@ -198,7 +202,7 @@ class Indicators:
 
     @property
     def RV(self):
-        """ The measured radial velocity, from a Gaussian fit to the CCF """
+        """ The measured radial velocity, from a Gaussian fit to the CCF [km/s] """
         eccf = self.eccf if self._use_errors else None
         try:
             return RV(self.rv, self.ccf, eccf, guess_rv=self.pipeline_RV)
@@ -207,7 +211,7 @@ class Indicators:
 
     @property
     def RVerror(self):
-        """ Photon-noise uncertainty on the measured radial velocity """
+        """ Photon-noise uncertainty on the measured radial velocity [km/s] """
         if self.eccf is not None:  # CCF uncertainties were provided
             if self.eccf.size != self.ccf.size:
                 raise ValueError('CCF and CCF errors not of the same size')
@@ -232,13 +236,13 @@ class Indicators:
         if not hasattr(self, 'HDU'):
             raise ValueError(
                 'Cannot access individual CCFs (no HDU attribute)')
-
+        from .gaussian import fwhm2sig
         RVs = []
         for ccf in self._SCIDATA[:-1]:
             if np.nonzero(ccf)[0].size == 0:
                 RVs.append(np.nan)
             else:
-                p0 = [-np.ptp(ccf), self.RV, self.FWHM, ccf.mean()]
+                p0 = [-np.ptp(ccf), self.RV, fwhm2sig(self.FWHM), ccf.mean()]
                 RVs.append(RV(self.rv, ccf, p0=p0))
 
         return np.array(RVs)
@@ -262,7 +266,7 @@ class Indicators:
 
     @property
     def FWHM(self):
-        """ The full width at half maximum of the CCF """
+        """ The full width at half maximum of the CCF [km/s] """
         eccf = self.eccf if self._use_errors else None
         try:
             return FWHMcalc(self.rv, self.ccf, eccf,
@@ -272,16 +276,27 @@ class Indicators:
 
     @property
     def FWHMerror(self):
-        """ Photon noise uncertainty on the FWHM of the CCF """
+        """ Photon noise uncertainty on the FWHM of the CCF [km/s] """
+        warnings.formatwarning = one_line_warning
+        warnings.warn('FWHMerror is currently just 2 x RVerror')
         return 2.0 * self.RVerror
 
-    @cached_property
+    @property
     def BIS(self):
-        """ Bisector inverse slope """
+        """ Bisector span [km/s] """
+        warnings.warn('BIS currently does NOT match the ESPRESSO pipeline')
         if self._use_bis_from_HARPS:
             return BIS_HARPS_calc(self.rv, self.ccf)
         else:
-            return BIS(self.rv, self.ccf)
+            return BIS_ESP_calc(self.rv, self.ccf)[0]
+            # return BIS(self.rv, self.ccf)
+
+    @property
+    def BISerror(self):
+        """ Photon noise uncertainty on the BIS of the CCF [km/s] """
+        warnings.warn('BISerror is currently just 2 x RVerror')
+        return 2.0 * self.RVerror
+
 
     @cached_property
     def Vspan(self):
@@ -326,6 +341,17 @@ class Indicators:
             raise ValueError('Cannot access header (no HDU attribute)')
 
         return getFWHM(None, hdul=self.HDU)
+
+    @property
+    def pipeline_BIS(self):
+        """
+        The BIS SPAN as derived by the pipeline, from the header.
+        """
+        if not hasattr(self, 'HDU'):
+            raise ValueError('Cannot access header (no HDU attribute)')
+
+        return getBIS(None, hdul=self.HDU)
+
 
     @property
     def pipeline_RVerror(self):
