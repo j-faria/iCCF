@@ -363,36 +363,31 @@ class Indicators:
 
         return getRVerror(None, hdul=self.HDU)
 
-    def check(self, verbose=False):
-        """ Check if calculated RV and FWHM match the pipeline values """
-        try:
-            val1, val2 = self.RV, self.pipeline_RV
-            if verbose:
-                print('comparing RV calculated/pipeline:', end=' ')
-                print(f'{val1:.{self._nEPS}f} / {val2:.{self._nEPS}f}')
-            np.testing.assert_almost_equal(val1, val2, self._nEPS, err_msg='')
-        except ValueError as e:
-            no_stack_warning(str(e))
+    def recalculate_ccf(self, orders=None, weighted=False):
+        """
+        Recompute the final CCF from the CCFs of individual orders
 
-        try:
-            val1, val2 = self.RVerror, self.pipeline_RVerror
-            if verbose:
-                print('comparing RVerror calculated/pipeline:', end=' ')
-                print(f'{val1:.{self._nEPS}f} / {val2:.{self._nEPS}f}')
-            np.testing.assert_almost_equal(val1, val2, self._nEPS, err_msg='')
-        except ValueError as e:
-            no_stack_warning(str(e))
+        Args:
+            orders (slice, int, tuple, list, array): 
+                List of orders for which to sum the CCFs. If None, use all
+                orders. If an int, return directly the CCF of that order
+                (0-based).
+        """
+        if orders is None:
+            return self.ccf
 
-        try:
-            val1, val2 = self.FWHM, self.pipeline_FWHM
-            if verbose:
-                print('comparing FWHM calculated/pipeline:', end=' ')
-                print(f'{val1:.{2}f} / {val2:.{2}f}')
-                no_stack_warning(
-                    'As of now, FWHM is only compared to 2 decimal places')
-            np.testing.assert_almost_equal(val1, val2, 2, err_msg='')
-        except ValueError as e:
-            no_stack_warning(str(e))
+        if isinstance(orders, int):
+            return self._SCIDATA[orders]
+        else:
+            if weighted:
+                has_errors = np.where([(self._ERRDATA[j] != 0).all() for j in range(self.norders)])[0]
+                orders = np.array(orders)[np.isin(orders, has_errors)]
+                d = self._SCIDATA[orders]
+                e = self._ERRDATA[orders]
+                return np.average(d, axis=0, weights=1/e**2) * len(orders)
+            else:
+                return self._SCIDATA[orders].sum(axis=0)
+
 
         return True  # all checks passed!
 
