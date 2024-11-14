@@ -573,7 +573,7 @@ def calculate_ccf(filename, mask=None, rvarray=None, **kwargs):
 
     mask_widths = {
         'ESPRESSO': 0.5,
-        'HARPS': 0.5,
+        'HARPS': 0.82,
         'NIRPS': 1.0
     }
     kwargs.setdefault('mask_width', mask_widths[instrument])
