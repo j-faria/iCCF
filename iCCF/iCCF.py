@@ -298,12 +298,14 @@ class Indicators:
         return 2.0 * self.RVerror
 
 
-    @cached_property
+    @property
     def Vspan(self):
+        """ Vspan indicator [km/s], see Boisse et al. (2011b, A&A 528 A4) """
         return vspan(self.rv, self.ccf)
 
-    @cached_property
+    @property
     def Wspan(self):
+        """ Wspan indicator [km/s], see Santerne et al. (2015, MNRAS 451, 3) """
         return wspan(self.rv, self.ccf)
 
     @cached_property
@@ -524,7 +526,8 @@ class Indicators:
             ax.errorbar(orders, self.individual_RV,
                         self.individual_RVerror, fmt='o', label='individual order RV')
             ax.axhline(self.RV, color='darkgreen', ls='--', label='final RV')
-            if (nans := np.isnan(self.individual_RV)).any():
+            nans = np.isnan(self.individual_RV)
+            if nans.any():
                 ax.plot(orders[nans], np.full(n, self.RV)[nans], 'rx', label='NaN')
 
         # m = np.full_like(orders, self.RV, dtype=float)
