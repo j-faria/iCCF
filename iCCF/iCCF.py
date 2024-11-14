@@ -1,4 +1,5 @@
 from collections.abc import Iterable
+import os
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -7,7 +8,6 @@ from glob import glob
 import math
 import warnings
 
-from astropy.io import fits
 from cached_property import cached_property
 
 try:
@@ -16,14 +16,14 @@ except ImportError:
     tqdm = lambda x: x
 
 from .gaussian import gauss, gaussfit, FWHM as FWHMcalc, RV, RVerror, contrast
-from .bisector import BIS, BIS_HARPS as BIS_HARPS_calc, bisector
+from .bisector import BIS, BIS_HARPS as BIS_HARPS_calc, BIS_ESP as BIS_ESP_calc
 from .vspan import vspan
 from .wspan import wspan
-from .keywords import (getRV, getRVerror, getFWHM, getBJD, getMASK, getRVarray,
+from .keywords import (getRV, getRVerror, getFWHM, getBIS, getBJD, getMASK, getRVarray,
                        getINSTRUMENT)
 from . import writers
 from .ssh_files import ssh_fits_open
-from .utils import no_stack_warning, _get_hdul
+from .utils import no_stack_warning, one_line_warning
 
 EPS = 1e-5  # all indicators are accurate up to this epsilon
 nEPS = abs(math.floor(math.log(EPS, 10)))  # number of decimals for output
