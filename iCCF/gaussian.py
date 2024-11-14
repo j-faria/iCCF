@@ -236,7 +236,99 @@ def contrast(rv, ccf, eccf=None, error=False, **kwargs):
         ## as in the ESPRESSO pipeline
         fwhm = FWHM(rv, ccf, eccf, **kwargs)
         snr = RVerror(rv, ccf, eccf)  # 1.0 / sqrt(ccf_sum)
-        return abs(snr * 2 / fwhm * A);
+        return abs(snr * 2 / fwhm * A)
+
+
+def mexican_hat(x, p):
+    """ A Mexican Hat function with parameters p = [A, x0, σ, offset]. """
+    _x = (x - p[1]) / p[2]
+    return p[0] * (1 - _x**2) * np.exp(-_x**2 / 2) + p[3]
+
+def _mexican_hat_partial_deriv(x, p):
+    A, x0, sig, _ = p
+    mh = mexican_hat(x, [A, x0, sig, 0.0])
+    dA = mexican_hat(x, [1.0, x0, sig, 0.0])
+    f = ((x - x0) / sig**2) * (3*sig**2 - (x - x0)**2) / (sig**2 - (x - x0)**2)
+    dx0 = mh * f
+    dsig = mh * (x - x0) * f / sig
+    doffset = np.ones_like(x)
+    return np.c_[dA, dx0, dsig, doffset]
+
+
+def mexican_hat_fit(x: np.ndarray,
+                    y: np.ndarray,
+                    p0: Optional[List] = None,
+                    yerr: Optional[np.ndarray] = None,
+                    return_errors: bool = False,
+                    use_deriv: bool = True,
+                    guess_rv: Optional[float] = None,
+                    **kwargs) -> List:
+    """
+    Fit a Mexican Hat function to `x`,`y` (and, if provided, `yerr`) using
+    least-squares, with initial guess `p0` = [A, x0, σ, offset]. If p0 is not
+    provided, the function tries an educated guess, which might lead to bad
+    results.
+
+    Args:
+        x (array):
+            The independent variable where the data is measured
+        y (array):
+            The dependent data.
+        p0 (list or array):
+            Initial guess for the parameters. If None, try to guess them from x,y.
+        return_errors (bool):
+            Whether to return estimated errors on the parameters.
+        use_deriv (bool):
+            Whether to use partial derivatives of the Mexican Hat (wrt the parameters)
+            as Jacobian in the fit. If False, the Jacobian will be estimated.
+        guess_rv (float):
+            Initial guess for the RV (x0)
+        **kwargs:
+            Keyword arguments passed to `scipy.optimize.curve_fit`
+
+    Returns:
+        p (array):
+            Best-fit values of the four parameters [A, x0, σ, offset]
+        err (array):
+            Estimated uncertainties on the four parameters
+            (only if `return_errors=True`)
+    """
+    if (y == 0).all():
+        return np.full(4, np.nan)
+
+    x = x.astype(np.float64)
+    y = y.astype(np.float64)
+
+    if p0 is None:
+        p0 = _gauss_initial_guess(x, y)
+        p0[1] += 1e-5
+        p0[2] *= 2.0
+
+    if guess_rv is not None:
+        p0[1] = guess_rv
+
+    f = lambda x, *p: mexican_hat(x, p)
+    if use_deriv:
+        df = lambda x, *p: _mexican_hat_partial_deriv(x, p)
+    else:
+        df = None
+
+    pfit, pcov, *_ = optimize.curve_fit(f, x, y, p0=p0, sigma=yerr, jac=df,
+                                        xtol=1e-7, check_finite=True, **kwargs)
+
+    if 'full_output' in kwargs:
+            infodict = _
+
+    if return_errors:
+        errors = np.sqrt(np.diag(pcov))
+        if 'full_output' in kwargs:
+            return pfit, errors, infodict
+        return pfit, errors
+
+    if 'full_output' in kwargs:
+        return pfit, infodict
+
+    return pfit
 
 
 def rv_shift(rv, ccf, radial_velocity):
