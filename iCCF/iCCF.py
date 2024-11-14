@@ -388,6 +388,23 @@ class Indicators:
             else:
                 return self._SCIDATA[orders].sum(axis=0)
 
+    def remove_orders(self, orders, weighted=False):
+        """ Remove specific orders and recompute the CCF """
+        previous_RV = self.RV
+        all_orders = np.arange(self.norders)
+        orders = np.delete(all_orders, orders)
+        print('Recalculating CCF for subset of orders')
+        self.ccf = self.recalculate_ccf(orders, weighted=weighted)
+        if self.RV != previous_RV:
+            print(f'RV changed from {previous_RV}')
+            print(f'             to {self.RV} km/s')
+
+
+    def reset(self):
+        """ Reset the CCF to the original CCF """
+        self.ccf = self._SCIDATA[-1]
+
+
 
         return True  # all checks passed!
 
