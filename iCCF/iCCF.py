@@ -405,6 +405,45 @@ class Indicators:
         self.ccf = self._SCIDATA[-1]
 
 
+    def check(self, verbose=False):
+        """
+        Check if the calculated RV, RVerror, and FWHM match the pipeline values
+        """
+        Q = {
+            'RV': (self.RV, self.pipeline_RV),
+            'RVerror': (self.RVerror, self.pipeline_RVerror),
+            'FWHM': (self.FWHM, self.pipeline_FWHM),
+        }
+        for q, (val1, val2) in Q.items():
+            try:
+                if verbose:
+                    print(f'comparing {q:8s}: calculated/pipeline:', end=' ')
+                    print(f'{val1:.{self._nEPS}f} / {val2:.{self._nEPS}f}', end=' ')
+                np.testing.assert_almost_equal(val1, val2, self._nEPS, err_msg='')
+                print('✓')
+            except ValueError as e:
+                no_stack_warning(str(e))
+
+        # try:
+        #     val1, val2 = self.RVerror, self.pipeline_RVerror
+        #     if verbose:
+        #         print('comparing RVerror calculated/pipeline:', end=' ')
+        #         print(f'{val1:.{self._nEPS}f} / {val2:.{self._nEPS}f}')
+        #     np.testing.assert_almost_equal(val1, val2, self._nEPS, err_msg='')
+        # except ValueError as e:
+        #     no_stack_warning(str(e))
+
+        # try:
+        #     val1, val2 = self.FWHM, self.pipeline_FWHM
+        #     if verbose:
+        #         print('comparing FWHM calculated/pipeline:', end=' ')
+        #         # print(f'{val1:.{2}f} / {val2:.{2}f}')
+        #         # no_stack_warning(
+        #         #     'As of now, FWHM is only compared to 2 decimal places')
+        #         print(f'{val1:.{self._nEPS}f} / {val2:.{self._nEPS}f}')
+        #     np.testing.assert_almost_equal(val1, val2, self._nEPS, err_msg='')
+        # except ValueError as e:
+        #     no_stack_warning(str(e))
 
         return True  # all checks passed!
 
