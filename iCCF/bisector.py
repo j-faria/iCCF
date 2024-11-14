@@ -317,3 +317,68 @@ def BIS_HARPS(rv, ccf, down=(10, 40), up=(60, 90)):
     span = RV_top - RV_bottom
 
     return span  #(1 + k*depth/c)*c, bis, span, v0, depth
+
+
+def BIS_ESP(rv, ccf, p0=None, guess_rv=None, plot=False, **kwargs):
+    # from .gaussian import _gauss_initial_guess_pipeline, _gauss_initial_guess
+    if plot:
+        fig, axs = plt.subplots(2, 2, figsize=(10, 5), constrained_layout=True)
+        axs[0, 0].sharey(axs[0, 1])
+        axs[1, 0].sharey(axs[1, 1])
+
+    vv = np.linspace(rv.min(), rv.max(), 1000)
+    full_output = kwargs.pop('full_output', False)
+
+    p, info = gaussfit(rv, ccf, p0=p0, full_output=True)
+    # print(info[-2:])
+    k, x0, sig, c = p
+    # Higher errors are set on the bottom of the ccf fit, to fit only the top part
+    arg_err = (gauss(rv, p) - c) / k
+    sigma_err = 0.4 / 2.3548
+    gauss_err = 1.0 + 50.0 * np.exp(-(arg_err-1.0)*(arg_err-1.0)/2.0/sigma_err/sigma_err)
+
+    p_top, sig_top, info_top = gaussfit(rv, ccf, yerr=gauss_err, p0=p0,
+                                        return_errors=True, full_output=True)
+    RV_top = p_top[1]
+
+    if plot:
+        # axs[0, 0].errorbar(rv, ccf, gauss_err, fmt='o', color='k', ms=2)
+        sc = axs[0, 0].scatter(rv, ccf, c=1/gauss_err, cmap='GnBu', s=8)
+        axc = plt.colorbar(sc, ax=axs[0, 0], fraction=0.046, pad=0.04)
+        axc.set_ticks([])
+        axc.set_label(r'larger weight $\longrightarrow$')
+        axs[0, 0].plot(vv, gauss(vv, p_top), 'C0-', alpha=0.3)
+        axs[1, 0].plot(rv, gauss_err, 'k-o', ms=2)
+        axs[0, 0].set(xlabel='RV [km/s]', ylabel='CCF')
+        axs[1, 0].set(xlabel='RV [km/s]', ylabel='CCF uncertainty')
+
+    # Higher errors are set on the top of the ccf fit, to fit only the bottom part
+    # The continuum (< 0.01 of contrast) is forced to 1.0
+    arg_err = (gauss(rv, p) - c) / k
+    sigma_err = 0.25 / 2.3548
+    gauss_err = 1.0 + 50.0 * np.exp(-(arg_err-0.25)*(arg_err-0.25)/2.0/sigma_err/sigma_err)
+    gauss_err[arg_err < 0.01] = 1.0
+
+    p_bottom, sig_bottom, info_bottom = gaussfit(rv, ccf, yerr=gauss_err, p0=p0, 
+                                                return_errors=True, full_output=True)
+    # print(info_bottom[-2:])
+    RV_bottom = p_bottom[1]
+
+    if plot:
+        # axs[0, 1].errorbar(rv, ccf, gauss_err, fmt='o', color='k', ms=2)
+        sc = axs[0, 1].scatter(rv, ccf, c=1/gauss_err, cmap='GnBu', s=8)
+        axc = plt.colorbar(sc, ax=axs[0, 1], fraction=0.046, pad=0.04)
+        axc.set_ticks([])
+        axc.set_label(r'larger weight $\longrightarrow$')
+        axs[0, 1].plot(vv, gauss(vv, p_bottom), 'C0-', alpha=0.3)
+        axs[1, 1].plot(rv, gauss_err, 'k-o', ms=2)
+        axs[0, 1].set(xlabel='RV [km/s]', ylabel='CCF')
+        axs[1, 1].set(xlabel='RV [km/s]', ylabel='CCF uncertainty')
+
+    bispan = RV_top - RV_bottom
+
+    if plot:
+        return fig, bispan, p_top, p_bottom
+    
+    # return bispan, p_top, p_bottom
+    return bispan, p_top, p_bottom, sig_top, sig_bottom
