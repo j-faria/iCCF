@@ -371,35 +371,44 @@ class Indicators:
 
         Args:
             orders (slice, int, tuple, list, array): 
-                List of orders for which to sum the CCFs. If None, use all
-                orders. If an int, return directly the CCF of that order
-                (0-based).
+                List of orders for which to sum the CCFs. If None, use all orders. 
+                If an int, return directly the CCF of that order (1-based).
         """
         if orders is None:
             return self.ccf
 
         if isinstance(orders, int):
-            return self._SCIDATA[orders]
+            if orders == 0:
+                warnings.warn('orders are 1-based, returning order 1 instead')
+                orders = 1
+            return self._SCIDATA[orders - 1]
         else:
             if weighted:
                 has_errors = np.where([(self._ERRDATA[j] != 0).all() for j in range(self.norders)])[0]
                 orders = np.array(orders)[np.isin(orders, has_errors)]
-                d = self._SCIDATA[orders]
-                e = self._ERRDATA[orders]
+                d = self._SCIDATA[orders - 1]
+                e = self._ERRDATA[orders - 1]
                 return np.average(d, axis=0, weights=1/e**2) * len(orders)
             else:
-                return self._SCIDATA[orders].sum(axis=0)
+                return self._SCIDATA[orders - 1].sum(axis=0)
 
     def remove_orders(self, orders, weighted=False):
-        """ Remove specific orders and recompute the CCF """
+        """
+        Remove specific orders and recompute the CCF
+
+        Args:
+            orders (slice, int, tuple, list, array): 
+                List of orders for which to sum the CCFs. If None, use all orders. 
+                If an int, return directly the CCF of that order (1-based).
+        """
         previous_RV = self.RV
         all_orders = np.arange(self.norders)
         orders = np.delete(all_orders, orders)
         print('Recalculating CCF for subset of orders')
         self.ccf = self.recalculate_ccf(orders, weighted=weighted)
         if self.RV != previous_RV:
-            print(f'RV changed from {previous_RV}')
-            print(f'             to {self.RV} km/s')
+            print('RV changed from', previous_RV)
+            print('             to', self.RV, 'km/s')
 
 
     def reset(self):
