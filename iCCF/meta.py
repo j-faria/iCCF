@@ -378,12 +378,8 @@ def calculate_s2d_ccf_parallel(s2dfile, rvarray, mask, mask_width=0.5, order='al
 
     # find and read the blaze file
     if ignore_blaze:
-        if verbose:
-            print('Ignoring the blaze (i.e. assuming the S2D is de-blazed)')
         blaze = np.ones_like(hdu[1].data)
     else:
-        if verbose:
-            print('De-blazing (i.e. assuming the S2D is *not* de-blazed)')
         _, blazefile = find_blaze(None, hdu=hdu)
         try:
             blazefile = find_file(blazefile, ssh, verbose)
