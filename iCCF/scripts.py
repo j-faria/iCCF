@@ -193,19 +193,25 @@ def check_CCF():
     print(f'(CCF1 - CCF2)/CCF1: max={np.nanmax(r):.2e}, mean={np.nanmean(r):.2e}')
     print()
     print()
-    print(f'  RV: {i1.RV} (pipe RV={i1.pipeline_RV})')
+    print('  RV:', i1.RV, '(pipe RV=', i1.pipeline_RV, ')')
     print('    :', i2.RV)
     a, b = str(i1.RV), str(i2.RV)
     if a != b:
-        size = [i for i,(_a, _b) in enumerate(zip(a, b)) if _a != _b][0]
-        print('     ' + (' ' * (size+1)) + '^')
+        try:
+            size = [i for i,(_a, _b) in enumerate(zip(a, b)) if _a != _b][0]
+            print('     ' + (' ' * (size+1)) + '^')
+        except IndexError:
+            pass
     print()
-    print(f'FWHM: {i1.FWHM} ({i1.pipeline_FWHM})')
+    print('FWHM:', i1.FWHM, '(pipe FWHM=', i1.pipeline_FWHM, ')')
     print('    :', i2.FWHM)
     a, b = str(i1.FWHM), str(i2.FWHM)
     if a != b:
-        size = [i for i,(_a, _b) in enumerate(zip(a, b)) if _a != _b][0]
-        print('     ' + (' ' * (size+1)) + '^')
+        try:
+            size = [i for i,(_a, _b) in enumerate(zip(a, b)) if _a != _b][0]
+            print('     ' + (' ' * (size+1)) + '^')
+        except IndexError:
+            pass
 
     if args.plot:
         if i1.rv.size != i2.rv.size:
