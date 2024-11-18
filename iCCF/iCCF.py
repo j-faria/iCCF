@@ -431,7 +431,8 @@ class Indicators:
                     print(f'comparing {q:8s}: calculated/pipeline:', end=' ')
                     print(f'{val1:.{self._nEPS}f} / {val2:.{self._nEPS}f}', end=' ')
                 np.testing.assert_almost_equal(val1, val2, self._nEPS, err_msg='')
-                print('✓')
+                if verbose:
+                    print('✓')
             except ValueError as e:
                 no_stack_warning(str(e))
 
