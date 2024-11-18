@@ -11,10 +11,10 @@ from .bigaussian import bigauss, bigaussfit
 from .vspan import vspan
 from .wspan import wspan
 from .meta import calculate_ccf
-from . import utils
+from .masks import Mask
 
 from .chromatic import chromaticRV
 
-from .iCCF import EPS, nEPS
+# from .iCCF import EPS, nEPS
 from .iCCF import Indicators
 from_file = Indicators.from_file
