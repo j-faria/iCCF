@@ -7,7 +7,18 @@ from .utils import find_data_file, doppler_shift_wave
 
 
 class Mask:
+    """ Hold information about a CCF mask for a given instrument. """
     def __init__(self, mask, instrument=None):
+        """
+        Args:
+            mask (str):
+                Mask name (e.g. G2, M4, ...).
+            instrument (str, optional):
+                Instrument name (e.g. NIRPS). Defaults to ESPRESSO.
+
+        Raises:
+            FileNotFoundError: If the mask file cannot be found.
+        """
         if instrument is None:
             instrument = 'ESPRESSO'
         
@@ -43,6 +54,10 @@ class Mask:
     @property
     def nlines(self):
         return self.wavelength.size
+
+    @property
+    def size(self):
+        return self.nlines
     
     def __repr__(self):
         if self.instrument is None:
@@ -118,3 +133,5 @@ class Mask:
         ax.legend()
         ax.set(xlabel=r'wavelength [$\AA$]', ylabel='contrast')
         return fig, ax
+
+
