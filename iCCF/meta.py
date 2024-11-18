@@ -410,6 +410,12 @@ def calculate_s2d_ccf_parallel(s2dfile, rvarray, mask, mask_width=0.5, order='al
             with fits.open(blazefile) as hdu_blaze:
                 blaze = hdu_blaze[1].data
 
+    ll = hdu[5].data
+    if ll.min() > mask['lambda'].max():
+        raise ValueError('No wavelength overlap between S2D and mask lines')
+    if ll.max() < mask['lambda'].min():
+        raise ValueError('No wavelength overlap between S2D and mask lines')
+
     # dll used to be stored in a separate file (?), now it's in the S2D
     # dllfile = hdu[0].header['HIERARCH ESO PRO REC1 CAL8 NAME']
     # dllfile = find_file(dllfile, ssh)
@@ -568,7 +574,7 @@ def calculate_ccf(filename, mask=None, rvarray=None, **kwargs):
     """
 
     # read original S2D file
-    filename = os.path.basename(filename)
+    directory, file = os.path.split(filename)
     s2dhdu_header = fits.getheader(filename)
 
     instrument = getINSTRUMENT(filename)
@@ -583,6 +589,7 @@ def calculate_ccf(filename, mask=None, rvarray=None, **kwargs):
     if mask is None:
         mask = s2dhdu_header['HIERARCH ESO QC CCF MASK']
     
+    print('Using CCF mask:', mask)
     if isinstance(mask, str):
         mask_str = mask
         mask_file = f"{instrument}_{mask}.fits"
