@@ -400,8 +400,8 @@ def calculate_s2d_ccf_parallel(s2dfile, rvarray, mask, mask_width=0.5, order='al
                     raise FileNotFoundError(f'Could not find BLAZE file: {blazefile}') from None
 
         if smart_blaze:
-            assert 'S2D_A' in s2dfile, 'Not a de-blazed S2D file'
-            s2d_blaze_file = s2dfile.replace('S2D_A', 'S2D_BLAZE_A')
+            # assert 'S2D_A' in s2dfile, 'Not a de-blazed S2D file'
+            s2d_blaze_file = s2dfile.replace('S2D_A', 'S2D_BLAZE_A').replace('S2D_TELL_CORR_A', 'S2D_BLAZE_TELL_CORR_A')
             if os.path.exists(s2d_blaze_file):
                 with fits.open(s2d_blaze_file) as hdu_s2d_blaze:
                     with np.errstate(invalid='ignore'):
