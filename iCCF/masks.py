@@ -16,6 +16,12 @@ class Mask:
             instrument (str, optional):
                 Instrument name (e.g. NIRPS). Defaults to ESPRESSO.
 
+        Attributes:
+            wavelength (array):
+                Wavelength array in Ängstroms.
+            contrast (array):
+                Mask contrast array.
+
         Raises:
             FileNotFoundError: If the mask file cannot be found.
         """
@@ -40,7 +46,8 @@ class Mask:
         self._contrast = self.contrast.copy()
 
     @classmethod
-    def from_arrays(cls, wavelength, contrast, name=None, instrument=None):
+    def from_arrays(cls, wavelength, contrast, name: str = None, instrument: str = None):
+        """ Create a mask from wavelength and contrast arrays. """
         self = cls.__new__(cls)
         self.wavelength = wavelength
         self.contrast = contrast
@@ -53,10 +60,12 @@ class Mask:
 
     @property
     def nlines(self):
+        """ Number of lines (currently) in the mask """
         return self.wavelength.size
 
     @property
     def size(self):
+        """ Number of lines (currently) in the mask """
         return self.nlines
     
     def __repr__(self):
@@ -73,6 +82,7 @@ class Mask:
             raise KeyError(key)
 
     def select_wavelength(self, min=None, max=None):
+        """ Select lines based on min or max wavelengths """
         λ = self.wavelength
         mask = np.full(λ.size, True)
         if min is not None:
@@ -87,6 +97,7 @@ class Mask:
         self.contrast = self.contrast[mask]
 
     def select_contrast(self, min=None, max=None):
+        """ Select lines based on min or max contrast """
         c = self._contrast
         mask = np.full(c.size, True)
         if min is not None:
@@ -101,11 +112,31 @@ class Mask:
         self.contrast = self._contrast[mask].copy()
 
     def reset(self):
+        """ Reset the mask to the original lines """
         self.wavelength = self._wavelength
         self.contrast = self._contrast
 
-    def plot(self, ax=None, rv=0, down=False, factor=1, show_original=True, norm=False,
-             **kwargs):
+    def plot(self, ax=None, rv=0, down=False, factor=1, show_original=True, norm=False, **kwargs):
+        """ Plot the mask
+
+        Args:
+            ax (matplotlib.Axes, optional):
+                An optional axes to plot on.
+            rv (int, optional):
+                Radial velocity by which to shift the mask [km/s]. Defaults to 0.
+            down (bool, optional):
+                Plot mask lines going down. Defaults to False.
+            factor (int, optional):
+                Factor by which to scale the contrast. Defaults to 1.
+            show_original (bool, optional):
+                Whether to show the original mask for comparison. Defaults to True.
+            norm (bool, optional):
+                Normalize the contrast by the maximum value. Defaults to False.
+
+        Returns:
+            fig, ax:
+                The figure and axes objects
+        """
         if ax is None:
             fig, ax = plt.subplots(figsize=(8, 4), constrained_layout=True)
         else:
