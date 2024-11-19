@@ -242,10 +242,12 @@ def find_file(file, ssh=None, verbose=True):
     try:
         found = subprocess.check_output(f'locate {file}'.split())
         found = found.decode().split()
+        if len(found) == 0:
+            raise FileNotFoundError(file)
         if verbose:
             print('\tfound file:', found[-1])
         return found[-1]
-    except subprocess.CalledProcessError:
+    except (subprocess.CalledProcessError, FileNotFoundError):
         if ssh is None:
             raise FileNotFoundError(file) from None
 
