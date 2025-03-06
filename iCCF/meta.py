@@ -552,28 +552,25 @@ def calculate_s1d_ccf_parallel(s1dfile, rvarray, mask_file='ESPRESSO_G2.fits',
 
 def calculate_ccf(filename, mask=None, rvarray=None, **kwargs):
     """
-    A wrapper for the `calculate_*_ccf_parallel` functions which also saves the
-    resulting CCF in a fits file. Mostly meant for the iccf-make-ccf script.
+    Calculate the CCF for an S2D file and save the result to a fits file.
 
-    Parameters
-    ----------
-    filename : str
-        The name of the S2D file
-    mask : str
-        The identifier for the CCF mask to use. A file 'INST_mask.fits'
-        should exist (not necessarily in the current directory)
-    rvarray : array, optional
-        RV array where to calculate the CCF. If not provided, try to extact it
-        from the S2D file
-    # ignore_blaze : bool, default True
-    #     If True, the function completely ignores any blaze correction and takes
-    #     the flux values as is from the S2D file
-    clobber : bool, default True
-        Whether to replace output CCF file even if it exists
-    verbose : bool, default True
-        Print status messages and progress bar
-    **kwargs
-        Keyword arguments passed directly to `calculate_s2d_ccf_parallel`
+    Args:
+        filename (str):
+            The name of the S2D file
+        mask (str, Mask, optional):
+            The identifier for the CCF mask to use or an `iCCF.Mask` object. If
+            not provided, try to extact it from the S2D file. If a string, a
+            file 'INST_mask.fits' should exist (not necessarily in the current
+            directory)
+        rvarray (array, optional):
+            RV array where to calculate the CCF. If not provided, try to extact
+            it from the S2D file
+        clobber (bool, default True):
+            Whether to replace output CCF file even if it exists.
+        verbose (bool, default True):
+            Print status messages and progress bar.
+        **kwargs
+            Keyword arguments passed directly to `calculate_s2d_ccf_parallel`
     """
 
     # read original S2D file
