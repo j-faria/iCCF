@@ -341,8 +341,9 @@ def calculate_s2d_ccf_parallel(s2dfile, rvarray, mask, mask_width=0.5, order='al
     ignore_blaze : bool, default True
         If True, the function completely ignores any blaze correction and takes
         the flux values as is from the S2D file
-    do_flux_corr : bool, default False
-        Whether to perform the flux correction step
+    do_flux_corr : bool
+        Whether to perform the flux correction step. By default, check the 
+        'HIERARCH ESO QC SCIRED FLUX CORR CHECK' keyword in the S2D header
     ssh : str
         SSH information in the form "user@host" to look for required calibration
         files in a server. If the files are not found locally, the function
