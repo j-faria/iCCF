@@ -651,13 +651,17 @@ def calculate_ccf(filename, mask=None, rvarray=None, **kwargs):
     phdr['HIERARCH ESO RV START'] = rvarray[0]
     phdr['HIERARCH ESO RV STEP'] = np.ediff1d(rvarray)[0]
     phdr['HIERARCH ESO QC CCF MASK'] = mask_str
-    phdr['HIERARCH ESO QC CCF RV'] = Ind.RV
-    phdr['HIERARCH ESO QC CCF RV ERROR'] = Ind.RVerror
-    phdr['HIERARCH ESO QC CCF FWHM'] = Ind.FWHM
-    phdr['HIERARCH ESO QC CCF FWHM ERROR'] = Ind.FWHMerror
-    phdr['HIERARCH ESO QC CCF BIS SPAN'] = Ind.BIS
-    phdr['HIERARCH ESO QC CCF BIS SPAN ERROR'] = Ind.BISerror
-    phdr['HIERARCH ESO QC CCF CONTRAST'] = Ind.contrast
+
+    if np.isnan(Ind.RV):
+        warnings.warn('CCF RV is NaN')
+    else:
+        phdr['HIERARCH ESO QC CCF RV'] = Ind.RV
+        phdr['HIERARCH ESO QC CCF RV ERROR'] = Ind.RVerror
+        phdr['HIERARCH ESO QC CCF FWHM'] = Ind.FWHM
+        phdr['HIERARCH ESO QC CCF FWHM ERROR'] = Ind.FWHMerror
+        phdr['HIERARCH ESO QC CCF BIS SPAN'] = Ind.BIS
+        phdr['HIERARCH ESO QC CCF BIS SPAN ERROR'] = Ind.BISerror
+        phdr['HIERARCH ESO QC CCF CONTRAST'] = Ind.contrast
     # # phdr['HIERARCH ESO QC CCF CONTRAST ERROR'] = Ind.contrasterror # TODO
     # # 'ESO QC CCF FLUX ASYMMETRY' # TODO
 
