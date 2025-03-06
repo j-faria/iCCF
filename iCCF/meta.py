@@ -627,16 +627,18 @@ def calculate_ccf(filename, mask=None, rvarray=None, **kwargs):
         end = OBJ_RV + (OBJ_RV - start)
         rvarray = np.arange(start, end + step, step)
 
-    flux_corr = bool(s2dhdu_header.get('HIERARCH ESO QC SCIRED FLUX CORR CHECK'))
+    flux_corr = kwargs.get(
+        'do_flux_corr', 
+        bool(s2dhdu_header.get('HIERARCH ESO QC SCIRED FLUX CORR CHECK'))
+    )
     kwargs['do_flux_corr'] = flux_corr
 
     # if s1d or 'S1D' in filename:
     #     ccf, ccfe, ccfq, kw = calculate_s1d_ccf_parallel(
     #         filename, rvarray, full_output=True, **kwargs)
     # else:
-    ccf, ccfe, ccfq, kw = calculate_s2d_ccf_parallel(filename, rvarray, 
-                                                     order='all', full_output=True,
-                                                     **kwargs)
+    ccf, ccfe, ccfq, kw = calculate_s2d_ccf_parallel(filename, rvarray, order='all', 
+                                                     full_output=True, **kwargs)
 
     # in the pipeline, data are saved as floats
     ccf = ccf.astype(np.float32)
