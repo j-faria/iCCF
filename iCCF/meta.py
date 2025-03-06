@@ -354,7 +354,7 @@ def calculate_s2d_ccf_parallel(s2dfile, rvarray, mask, mask_width=0.5, order='al
     norders, order_len = hdu[1].data.shape
 
     if ncores is None:
-        ncores = get_ncores()
+        ncores = get_ncores() // 2
 
     if verbose:
         print(f'Using {ncores} CPU cores for the calculation')
