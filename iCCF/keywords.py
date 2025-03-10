@@ -101,22 +101,17 @@ def getRVarray(fitsfile, hdul=None, return_hdul=False, **kwargs):
     if hdul is None:
         hdul = _get_hdul(fitsfile, **kwargs)
 
+    sta = getKW('RV start', ['HIERARCH ESO RV START', 'CRVAL1', 'HIERARCH TNG RV START'])(None, hdul=hdul)
+    ste = getKW('RV step', ['HIERARCH ESO RV STEP', 'CDELT1', 'HIERARCH TNG RV STEP'])(None, hdul=hdul)
     try:
-        sta, ste, n = (hdul[0].header['HIERARCH ESO RV START'],
-                       hdul[0].header['HIERARCH ESO RV STEP'],
-                       hdul[1].header['NAXIS1'])
+        n = hdul[0].header['NAXIS1']
     except KeyError:
-        try:
-            sta, ste, n = (hdul[0].header['CRVAL1'],
-                           hdul[0].header['CDELT1'],
-                           hdul[0].header['NAXIS1'])
-        except KeyError:
-            raise KeyError
-    finally:
-        if return_hdul:
-            return sta + ste * np.arange(n), hdul
-        else:
-            return sta + ste * np.arange(n)
+        n = hdul[1].header['NAXIS1']
+
+    if return_hdul:
+        return sta + ste * np.arange(n), hdul
+    else:
+        return sta + ste * np.arange(n)
 
 
 def getBJD(fitsfile, hdul=None, keyword=None, mjd=True, return_hdul=False,
