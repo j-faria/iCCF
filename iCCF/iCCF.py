@@ -20,7 +20,7 @@ from .bisector import BIS, BIS_HARPS as BIS_HARPS_calc, BIS_ESP as BIS_ESP_calc
 from .vspan import vspan
 from .wspan import wspan
 from .keywords import (getRV, getRVerror, getFWHM, getBIS, getBJD, getMASK, getRVarray,
-                       getINSTRUMENT)
+                       getINSTRUMENT, getOBJECT)
 from . import writers
 from .ssh_files import ssh_fits_open
 from .utils import no_stack_warning, one_line_warning
@@ -154,6 +154,10 @@ class Indicators:
 
             rv, hdul = getRVarray(file, return_hdul=True, USER=user, HOST=host)
 
+            if len(hdul) == 1 and hdu_number == 1:
+                warnings.warn('file only has one HDU, using hdu_number=0')
+                hdu_number = 0
+
             ccf = hdul[hdu_number].data[data_index, :]
             try:
                 eccf = hdul[hdu_number + 1].data[data_index, :]
@@ -186,7 +190,12 @@ class Indicators:
     def norders(self):
         return self._SCIDATA.shape[0] - 1
 
-    @cached_property
+    @property
+    def OBJECT(self):
+        return getOBJECT(self.filename, hdul=self.HDU)
+
+    @property
+    # @lru_cache
     def bjd(self):
         """ Barycentric Julian Day when the observation was made """
         return getBJD(self.filename, hdul=self.HDU, mjd=False)
@@ -377,10 +386,10 @@ class Indicators:
         if orders is None:
             return self.ccf
 
+        warnings.warn('In this function, orders are 1-based. Make sure the right orders are being used!')
+        print(orders - 1)
+
         if isinstance(orders, int):
-            if orders == 0:
-                warnings.warn('orders are 1-based, returning order 1 instead')
-                orders = 1
             return self._SCIDATA[orders - 1]
         else:
             if weighted:
