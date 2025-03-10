@@ -24,7 +24,7 @@ class getKW:
         self.name = name
         self.kws = kws
     def __call__(self, fitsfile, hdul=None, keyword=None, return_hdul=False, **kwargs):
-        _check_hdul(hdul, fitsfile, **kwargs)
+        hdul = _check_hdul(hdul, fitsfile, **kwargs)
         if keyword is not None:
             return hdul[0].header[keyword]
         val = _try_keywords(hdul, *self.kws)
@@ -38,8 +38,11 @@ class getKW:
         raise fail
 
 
+getOBJECT = getKW('object', ['OBJECT', 'HIERARCH TNG OBS TARG NAME'])
+
+
 getRV = getKW('RV', ['HIERARCH ESO QC CCF RV', 'HIERARCH ESO DRS CCF RVC'])
-getRV.__doc__ = f"""
+getRV.__doc__ = """
 Try to find the radial velocity in the header of `fitsfile`. If `keyword`
 is not provided, search for the following keywords
     - HIERARCH ESO QC CCF RV
@@ -58,7 +61,7 @@ Args:
 
 
 getRVerror = getKW('RV error', ['HIERARCH ESO QC CCF RV ERROR', 'HIERARCH ESO DRS CCF NOISE'])
-getRVerror.__doc__ = f"""
+getRVerror.__doc__ = """
 Try to find the radial velocity uncertainty in the header of `fitsfile`. If
 `keyword` is not provided, search for the following keywords
     - HIERARCH ESO QC CCF RV ERROR
