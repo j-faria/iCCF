@@ -25,23 +25,33 @@ class Mask:
         Raises:
             FileNotFoundError: If the mask file cannot be found.
         """
-        if instrument is None:
-            instrument = 'ESPRESSO'
-        
-        self.mask_name = mask
-        self.instrument = instrument
 
-        mask_file = self._mask_file = f'{instrument}_{mask}.fits'
+        if mask.endswith('.mas'): # old masks from HARPS
+            self.instrument = 'HARPS'
+            self.mask_name = mask[:-4]
+            mask_file = self._mask_file = mask
+            old_format = True
+        else:
+            self.mask_name = mask
+            self.instrument = instrument or 'ESPRESSO'
+            mask_file = self._mask_file = f'{instrument}_{mask}.fits'
+            old_format = False
 
         if not os.path.exists(mask_file):
             try:
                 mask_file = find_data_file(mask_file)
             except FileNotFoundError as e:
                 raise FileNotFoundError(f'Could not find file "{mask_file}"') from None
-        
-        m = fits.open(mask_file)
-        self.wavelength = m[1].data['lambda'].copy()
-        self.contrast = m[1].data['contrast'].copy()
+
+        if old_format:
+            data = np.loadtxt(mask_file, unpack=True)
+            self.wavelength = 0.5*(data[0] + data[1]).copy()
+            self.contrast = data[2].copy()
+        else:        
+            m = fits.open(mask_file)
+            self.wavelength = m[1].data['lambda'].copy()
+            self.contrast = m[1].data['contrast'].copy()
+
         self._wavelength = self.wavelength.copy()
         self._contrast = self.contrast.copy()
 
