@@ -1,4 +1,5 @@
 from collections.abc import Iterable
+from functools import lru_cache
 import os
 
 import numpy as np
@@ -7,8 +8,6 @@ from os.path import basename
 from glob import glob
 import math
 import warnings
-
-from cached_property import cached_property
 
 try:
     from tqdm import tqdm
@@ -239,12 +238,12 @@ class Indicators:
 
         return RVerror(self.rv, self.ccf, eccf)
 
-    @cached_property
+    @property
+    # @lru_cache
     def individual_RV(self):
         """ Individual radial velocities for each spectral order """
         if not hasattr(self, 'HDU'):
-            raise ValueError(
-                'Cannot access individual CCFs (no HDU attribute)')
+            raise ValueError('Cannot access individual CCFs (no HDU attribute)')
         from .gaussian import fwhm2sig
         RVs = []
         for ccf in self._SCIDATA[:-1]:
@@ -256,12 +255,16 @@ class Indicators:
 
         return np.array(RVs)
 
-    @cached_property
+    @property
+    # @lru_cache
     def individual_RVerror(self):
         """ Individual radial velocity errors for each spectral order """
         if not hasattr(self, 'HDU'):
             raise ValueError(
                 'Cannot access individual CCFs (no HDU attribute)')
+
+        if not hasattr(self, '_ERRDATA'):
+            return np.full_like(self.individual_RV, np.nan)
 
         RVes = []
         CCFs, eCCFs = self._SCIDATA, self._ERRDATA
@@ -317,12 +320,12 @@ class Indicators:
         """ Wspan indicator [km/s], see Santerne et al. (2015, MNRAS 451, 3) """
         return wspan(self.rv, self.ccf)
 
-    @cached_property
+    @property
     def contrast(self):
         """ The contrast (depth) of the CCF, measured in percentage """
         return contrast(self.rv, self.ccf, self.eccf)
 
-    @cached_property
+    @property
     def contrast_error(self):
         """ Uncertainty on the contrast (depth) of the CCF, measured in percentage """
         return contrast(self.rv, self.ccf, self.eccf, error=True)

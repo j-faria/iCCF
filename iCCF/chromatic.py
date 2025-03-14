@@ -14,7 +14,6 @@ from numpy import sqrt, sum
 import matplotlib.pyplot as plt
 
 from astropy.io import fits
-from cached_property import cached_property
 
 from .iCCF import Indicators
 from .gaussian import gaussfit, RV, RVerror, FWHM, FWHMerror
@@ -224,7 +223,7 @@ class chromaticRV():
         b = self.blue_wave_limits, self.mid_wave_limits, self.red_wave_limits
         return b
 
-    @cached_property
+    @property
     def time(self):
         """ BJD of observations """
         return np.fromiter((i.bjd for i in self.I), float, self.n)
