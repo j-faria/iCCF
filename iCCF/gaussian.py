@@ -28,23 +28,29 @@ def _gauss_initial_guess(x, y):
     # these guesses tend to work better for narrow-ish gaussians
     p0 = []
 
-    # guess the amplitude (force it to be negative)
+    # guess the amplitude 
+    # range of CCF values (force it to be negative)
     p0.append(-abs(np.ptp(y)))
 
-    # guess the center, but maybe the CCF is upside down?
-    m = y.mean()
-    ups_down = np.sign(np.percentile(y, 50) - m) != np.sign(y.max() - m)
-    if ups_down:  # seems like it
-        # warnings.warn('It seems the CCF might be upside-down?')
-        p0.append(x[y.argmax()])
-    else:
-        p0[0] *= -1
-        p0.append(x[y.argmin()])
+    # # guess the center, but maybe the CCF is upside down?
+    # m = y.mean()
+    # ups_down = np.sign(np.percentile(y, 50) - m) != np.sign(y.max() - m)
+    # if ups_down:  # seems like it
+    #     warnings.warn('It seems the CCF might be upside-down?')
+    #     p0[0] *= -1
+    #     p0.append(x[y.argmax()])
+    # else:
+    p0.append(x[y.argmin()])
+    
     # guess the width
-    p0.append(1)
-    # guess the offset
-    p0.append(0.5 * (y[0] + y[-1]))
+    p0.append(1) # sigma always fixed to 1 works most times
+    # another option, from arXiv:1907.07241, but sometimes it's too small
+    # p0.append( abs(_ccf_trapz(x, y)) / np.ptp(x) / np.sqrt(2*np.pi) )
 
+    # guess the offset
+    # mean of first and last CCF values
+    p0.append(0.5 * (y[0] + y[-1]))
+    
     return p0
 
 
