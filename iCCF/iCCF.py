@@ -523,11 +523,13 @@ class Indicators:
         ax.set(xlabel='RV [km/s]', ylabel='CCF')
         return ax.figure, ax
 
-    def plot_individual_CCFs(self, ax=None, show_errors=True, **kwargs):
+    def plot_individual_CCFs(self, ax=None, show_errors=True, show_fit=False, **kwargs):
         """ Plot the CCFs for individual orders """
         if ax is None:
-            _, ax = plt.subplots(constrained_layout=True)
-        
+            _, (ax, ax2) = plt.subplots(1, 2, figsize=(8, 4), width_ratios=[4, 1.5], constrained_layout=True)
+        else:
+            ax2 = None
+
         n = self.individual_RV.size
         for i in range(1, n + 1):
             _x = (self.rv - self.rv[0]) / np.ptp(self.rv) - 0.5 + i
@@ -536,7 +538,20 @@ class Indicators:
             else:
                 ax.plot(_x, self._SCIDATA[i - 1], **kwargs)
 
+            if show_fit:
+                try:
+                    p = gaussfit(self.rv, self._SCIDATA[i - 1])
+                    ax.plot(_x, gauss(self.rv, p), 'k', alpha=0.7)
+                    ax.text(i, np.max(self._SCIDATA[i - 1]), f'{p[1]:.3f} m/s',
+                            rotation=60, fontsize=8)
+                except RuntimeError:
+                    pass
+
         ax.set(xlabel='spectral order', ylabel='CCF', xlim=(-5, n+5))
+
+        if ax2:
+            ax2.plot(self.rv, self.ccf, **kwargs)
+
         return ax.figure, ax
 
     def plot_individual_RV(self, ax=None, relative=False, **kwargs):
@@ -546,13 +561,16 @@ class Indicators:
 
         n = self.individual_RV.size
         orders = np.arange(1, n + 1)
+
+        kwargs.setdefault('fmt', 'o')
+
         if relative:
             ax.errorbar(orders, (self.individual_RV - self.RV) / self.individual_RVerror,
-                        self.individual_RVerror, fmt='o', label='individual order RV')
+                        self.individual_RVerror, **kwargs, label='individual order RV')
             ax.axhline(0.0, color='darkgreen', ls='--', label='final RV')
         else:
             ax.errorbar(orders, self.individual_RV,
-                        self.individual_RVerror, fmt='o', label='individual order RV')
+                        self.individual_RVerror, **kwargs, label='individual order RV')
             ax.axhline(self.RV, color='darkgreen', ls='--', label='final RV')
             nans = np.isnan(self.individual_RV)
             if nans.any():
