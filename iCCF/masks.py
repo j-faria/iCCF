@@ -34,7 +34,7 @@ class Mask:
         else:
             self.mask_name = mask
             self.instrument = instrument or 'ESPRESSO'
-            mask_file = self._mask_file = f'{instrument}_{mask}.fits'
+            mask_file = self._mask_file = f'{self.instrument}_{mask}.fits'
             old_format = False
 
         if not os.path.exists(mask_file):
