@@ -237,3 +237,7 @@ def getINSTRUMENT(fitsfile, hdul=None, keyword=None, return_hdul=False, **kwargs
     obj = fitsfile or hdul
     fail = ValueError(f'Could not find any instrument keyword in header of "{obj}"')
     raise fail
+
+
+get_SCIRED_CHECK = getKW('SCIRED CHECK', ['HIERARCH ESO DRS CCF CHECK'])
+
