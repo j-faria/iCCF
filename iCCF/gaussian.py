@@ -66,6 +66,7 @@ def _gauss_initial_guess_pipeline(x, y):
     return [k, x0, fwhm2sig(fwhm), c]
 
 
+
 def gaussfit(x: np.ndarray,
              y: np.ndarray,
              p0: Optional[List] = None,
@@ -107,13 +108,15 @@ def gaussfit(x: np.ndarray,
     if (y == 0).all():
         return np.full(4, np.nan)
 
-    x = x.astype(np.float64)
-    y = y.astype(np.float64)
+    x = x.astype(y.dtype.type)
+    y = y.astype(y.dtype.type)
 
     if p0 is None:
         p0 = _gauss_initial_guess(x, y)
     if guess_rv is not None:
         p0[1] = guess_rv
+
+    p0 = np.array(p0).astype(y.dtype.type)
 
     f = lambda x, *p: gauss(x, p)
     if use_deriv:
@@ -127,6 +130,8 @@ def gaussfit(x: np.ndarray,
     if 'full_output' in kwargs:
             infodict = _
 
+    pfit = pfit.astype(y.dtype.type)
+
     if return_errors:
         errors = np.sqrt(np.diag(pcov))
         if 'full_output' in kwargs:
@@ -139,14 +144,97 @@ def gaussfit(x: np.ndarray,
     return pfit
 
 
+def gaussfit_slope(x: np.ndarray,
+                   y: np.ndarray,
+                   p0: Optional[List] = None,
+                   yerr: Optional[np.ndarray] = None,
+                   return_errors: bool = False,
+                   use_deriv: bool = True,
+                   guess_rv: Optional[float] = None,
+                   **kwargs) -> List:
+    """
+    Fit a Gaussian function and a slope to `x`,`y` (and, if provided, `yerr`)
+    using least-squares, with initial guess `p0` = [A, x0, σ, offset, slope]. If
+    p0 is not provided, the function tries an educated guess, which might lead
+    to bad results.
+
+    Args:
+        x (array):
+            The independent variable where the data is measured
+        y (array):
+            The dependent data.
+        p0 (list or array):
+            Initial guess for the parameters. If None, try to guess them from x,y.
+        return_errors (bool):
+            Whether to return estimated errors on the parameters.
+        use_deriv (bool):
+            Whether to use partial derivatives of the Gaussian (wrt the parameters)
+            as Jacobian in the fit. If False, the Jacobian will be estimated.
+        guess_rv (float):
+            Initial guess for the RV (x0)
+        **kwargs:
+            Keyword arguments passed to `scipy.optimize.curve_fit`
+
+    Returns:
+        p (array):
+            Best-fit values of the four parameters [A, x0, σ, offset, slope]
+        err (array):
+            Estimated uncertainties on the four parameters
+            (only if `return_errors=True`)
+    """
+    if (y == 0).all():
+        return np.full(4, np.nan)
+
+    x = x.astype(y.dtype.type)
+    y = y.astype(y.dtype.type)
+
+    if p0 is None:
+        p0 = _gauss_initial_guess(x, y)
+    if guess_rv is not None:
+        p0[1] = guess_rv
+
+    p0.append(0.0)
+    p0 = np.array(p0).astype(y.dtype.type)
+
+    def f(x, *p):
+        return gauss(x, p[:-1]) + p[-1] * (x - p[1])
+
+    if use_deriv:
+        raise NotImplementedError
+
+    df = None
+
+    pfit, pcov, *_ = optimize.curve_fit(f, x, y, p0=p0, sigma=yerr, jac=df,
+                                        xtol=1e-12, ftol=1e-14, check_finite=True, **kwargs)
+
+    if 'full_output' in kwargs:
+            infodict = _
+
+    pfit = pfit.astype(y.dtype.type)
+
+    if return_errors:
+        errors = np.sqrt(np.diag(pcov))
+        if 'full_output' in kwargs:
+            return pfit, errors, infodict
+        return pfit, errors
+
+    if 'full_output' in kwargs:
+        return pfit, infodict
+
+    return pfit
+
+
+
 def sig2fwhm(sig):
     """ Convert standard deviation to full width at half maximum. """
-    return 2 * sqrt(2 * log(2)) * sig
+    c = (2 * sqrt(2 * log(2))).astype(sig.dtype)
+    return c * sig
 
 
 def fwhm2sig(fwhm):
     """ Convert full width at half maximum to standard deviation. """
-    return fwhm / (2 * sqrt(2 * log(2)))
+    c = (2 * sqrt(2 * log(2))).astype(fwhm.dtype)
+    return fwhm / c
 
 
 def RV(rv, ccf, eccf=None, **kwargs):
