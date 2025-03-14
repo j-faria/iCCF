@@ -250,8 +250,11 @@ class Indicators:
             if np.nonzero(ccf)[0].size == 0:
                 RVs.append(np.nan)
             else:
-                p0 = [-np.ptp(ccf), self.RV, fwhm2sig(self.FWHM), ccf.mean()]
-                RVs.append(RV(self.rv, ccf, p0=p0))
+                try:
+                    # p0 = [-np.ptp(ccf), self.RV, fwhm2sig(self.FWHM), ccf.mean()]
+                    RVs.append(RV(self.rv, ccf))
+                except RuntimeError:
+                    RVs.append(np.nan)
 
         return np.array(RVs)
 
@@ -406,16 +409,19 @@ class Indicators:
 
     def remove_orders(self, orders, weighted=False):
         """
-        Remove specific orders and recompute the CCF
+        Remove specific orders and recompute the CCF (CAREFUL: 1-based indexing)
 
         Args:
             orders (slice, int, tuple, list, array): 
                 List of orders for which to sum the CCFs. If None, use all orders. 
                 If an int, return directly the CCF of that order (1-based).
         """
+        if isinstance(orders, int):
+            orders = [orders]
+        
         previous_RV = self.RV
-        all_orders = np.arange(self.norders)
-        orders = np.delete(all_orders, orders)
+        all_orders = np.arange(1, self.norders + 1)
+        orders = np.setdiff1d(all_orders, orders)
         print('Recalculating CCF for subset of orders')
         self.ccf = self.recalculate_ccf(orders, weighted=weighted)
         if self.RV != previous_RV:
