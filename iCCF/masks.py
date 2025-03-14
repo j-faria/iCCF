@@ -67,6 +67,12 @@ class Mask:
         self.instrument = None
         return self
 
+    @staticmethod
+    def available_masks():
+        av = find_data_file('NIRPS_*.fits')
+        av += find_data_file('ESPRESSO_*.fits')
+        av += find_data_file('HARPS_*.fits')
+        return [path.stem for path in av]
 
     @property
     def nlines(self):
