@@ -86,6 +86,10 @@ class Indicators:
         self._EPS = EPS
         self._nEPS = nEPS
 
+        # guess for RV in Gaussian fit
+        self._guess_rv = None
+
+
     def __repr__(self):
         if self.filename is None:
             info = f'RVmin={self.rv.min()}; RVmax={self.rv.max()}; n={self.rv.size}'
@@ -209,11 +213,21 @@ class Indicators:
         return getINSTRUMENT(self.filename, hdul=self.HDU)
 
     @property
+    def guess_rv(self):
+        if self._guess_rv is None:
+            self._guess_rv = self.pipeline_RV
+        return self._guess_rv
+    
+    @guess_rv.setter
+    def guess_rv(self, value):
+        self._guess_rv = value
+
+    @property
     def RV(self):
         """ The measured radial velocity, from a Gaussian fit to the CCF [km/s] """
         eccf = self.eccf if self._use_errors else None
         try:
-            return RV(self.rv, self.ccf, eccf, guess_rv=self.pipeline_RV)
+            return RV(self.rv, self.ccf, eccf, guess_rv=self._guess_rv)
         except ValueError:
             return RV(self.rv, self.ccf, eccf)
 
