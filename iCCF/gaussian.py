@@ -28,11 +28,11 @@ def _gauss_initial_guess(x, y):
     # these guesses tend to work better for narrow-ish gaussians
     p0 = []
 
-    # guess the amplitude 
-    # range of CCF values (force it to be negative)
+    ## guess the amplitude 
+    ## range of CCF values (force it to be negative)
     p0.append(-abs(np.ptp(y)))
 
-    # # guess the center, but maybe the CCF is upside down?
+    ## guess the center, but maybe the CCF is upside down?
     # m = y.mean()
     # ups_down = np.sign(np.percentile(y, 50) - m) != np.sign(y.max() - m)
     # if ups_down:  # seems like it
@@ -42,9 +42,14 @@ def _gauss_initial_guess(x, y):
     # else:
     p0.append(x[y.argmin()])
     
-    # guess the width
-    p0.append(1) # sigma always fixed to 1 works most times
-    # another option, from arXiv:1907.07241, but sometimes it's too small
+    ## guess the width
+    ## assume at least 5 points "in" the CCF and estimate the RV span
+    if x.size > 5:
+        p0.append(np.ptp(x[y < np.sort(y)[5]]))
+    else:
+        ## sigma always fixed to 1 works most times
+        p0.append(1) 
+    ## another option, from arXiv:1907.07241, but sometimes it's too small
     # p0.append( abs(_ccf_trapz(x, y)) / np.ptp(x) / np.sqrt(2*np.pi) )
 
     # guess the offset
@@ -123,6 +128,12 @@ def gaussfit(x: np.ndarray,
         df = lambda x, *p: _gauss_partial_deriv(x, p)
     else:
         df = None
+
+    # bounds = ([-np.inf]*4, [np.inf]*4)
+    # bounds[0][1] = x.min()
+    # bounds[1][1] = x.max()
+    # print(p0)
+    # print(bounds)
 
     pfit, pcov, *_ = optimize.curve_fit(f, x, y, p0=p0, sigma=yerr, jac=df,
                                         xtol=1e-12, ftol=1e-14, check_finite=True, **kwargs)
