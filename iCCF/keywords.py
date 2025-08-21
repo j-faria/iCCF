@@ -1,8 +1,9 @@
+from textwrap import dedent
 import numpy as np
 from .utils import _get_hdul
 
 __all__ = ['getRV', 'getRVerror', 'getRVarray',
-           'getBJD', 'getFWHM', 'getMASK', 'getINSTRUMENT']
+           'getBJD', 'getFWHM', 'getCONTRAST', 'getMASK', 'getINSTRUMENT']
 
 
 def _check_hdul(hdul, fitsfile, **kwargs):
@@ -20,6 +21,17 @@ def _try_keywords(hdul, *keywords, exception=None):
 
 
 class getKW:
+    __call_doc__ = """
+    Args:
+        fitsfile (str):
+            The name of the fits file
+        hdul (astropy.fits.HDUList, optional):
+            If provided, ignore `fitsfile` and use this HDU list directly
+        keyword (str, optional):
+            Get this keyword from the header instead of looking for RV keywords
+        return_hdul: (bool, optional)
+            Whether to return the HDU list read from the file
+    """
     def __init__(self, name, kws):
         self.name = name
         self.kws = kws
@@ -47,17 +59,7 @@ Try to find the radial velocity in the header of `fitsfile`. If `keyword`
 is not provided, search for the following keywords
     - HIERARCH ESO QC CCF RV
     - HIERARCH ESO DRS CCF RVC
-
-Args:
-    fitsfile (str):
-        The name of the fits file
-    hdul (astropy.fits.HDUList, optional):
-        If provided, ignore `fitsfile` and use this HDU list directly
-    keyword (str, optional):
-        Get this keyword from the header instead of looking for RV keywords
-    return_hdul: (bool, optional)
-        Whether to return the HDU list read from the file
-"""
+""" + dedent(getKW.__call_doc__)
 
 
 getRVerror = getKW('RV error', ['HIERARCH ESO QC CCF RV ERROR', 'HIERARCH ESO DRS CCF NOISE'])
@@ -66,17 +68,7 @@ Try to find the radial velocity uncertainty in the header of `fitsfile`. If
 `keyword` is not provided, search for the following keywords
     - HIERARCH ESO QC CCF RV ERROR
     - HIERARCH ESO DRS CCF NOISE
-
-Args:
-    fitsfile (str):
-        The name of the fits file
-    hdul (astropy.fits.HDUList, optional):
-        If provided, ignore `fitsfile` and use this HDU list directly
-    keyword (str, optional):
-        Get this keyword from the header instead of looking for RV keywords
-    return_hdul: (bool, optional)
-        Whether to return the HDU list read from the file
-"""
+""" + dedent(getKW.__call_doc__)
 
 
 getBIS = getKW('BIS', ['HIERARCH ESO QC CCF BIS SPAN'])
@@ -173,26 +165,21 @@ def getBJD(fitsfile, hdul=None, keyword=None, mjd=True, return_hdul=False,
     raise fail
 
 
-def getFWHM(fitsfile, hdul=None, keyword=None, return_hdul=False, **kwargs):
-    if hdul is None:
-        hdul = _get_hdul(fitsfile, **kwargs)
+getFWHM = getKW('FWHM', ['HIERARCH ESO QC CCF FWHM', 'HIERARCH ESO DRS CCF FWHM'])
+getFWHM.__doc__ = """
+Try to find the FWHM in the header of `fitsfile`. If `keyword` is not 
+provided, search for the following keywords
+    - HIERARCH ESO QC CCF FWHM
+    - HIERARCH ESO DRS CCF FWHM
+""" + dedent(getKW.__call_doc__)
 
-    if keyword is not None:
-        return hdul[0].header[keyword]
 
-    # need to look for it
-    kws = ['HIERARCH ESO QC CCF FWHM', 'HIERARCH ESO DRS CCF FWHM']
-    val = _try_keywords(hdul, *kws)
-
-    if val is not None:
-        if return_hdul:
-            return val, hdul
-        else:
-            return val
-
-    obj = fitsfile or hdul
-    fail = ValueError(f'Could not find any FWHM keyword in header of "{obj}"')
-    raise fail
+getCONTRAST = getKW('CONTRAST', ['HIERARCH ESO QC CCF CONTRAST'])
+getCONTRAST.__doc__ = """
+Try to find the contrsat in the header of `fitsfile`. If `keyword` is not 
+provided, search for the following keywords
+    - HIERARCH ESO QC CCF CONTRAST
+""" + dedent(getKW.__call_doc__)
 
 
 def getMASK(fitsfile, hdul=None, keyword=None, return_hdul=False, **kwargs):
