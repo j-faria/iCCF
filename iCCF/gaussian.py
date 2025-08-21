@@ -22,6 +22,16 @@ def _gauss_partial_deriv(x, p):
     dgdoffset = np.ones_like(x)
     return np.c_[dgdA, dgdx0, dgdsig, dgdoffset]
 
+def _ccf_trapz(x, y):
+    # for efficiency, use numpy
+    return np.trapz(y - y[0], x=x)
+    # # for C implementation:
+    # n = len(x)
+    # step = x[1] - x[0]
+    # integral = y[n - 1] - y[0]
+    # for i in range(1, n - 1):
+    #     integral += 2 * (y[i] - y[0])
+    # return integral * step / 2
 
 def _gauss_initial_guess(x, y):
     """ Educated guess (from the data) for Gaussian parameters. """
