@@ -23,9 +23,6 @@ from . import writers
 from .ssh_files import ssh_fits_open
 from .utils import no_stack_warning, one_line_warning
 
-EPS = 1e-5  # all indicators are accurate up to this epsilon
-nEPS = abs(math.floor(math.log(EPS, 10)))  # number of decimals for output
-
 
 def rdb_names(names):
     """ Return the usual .rdb format names. """
@@ -84,12 +81,17 @@ class Indicators:
         self._use_bis_from_HARPS = BIS_HARPS
 
         self.HDU = None
-        self._EPS = EPS
-        self._nEPS = nEPS
 
         # guess for RV in Gaussian fit
         self._guess_rv = None
 
+    @property
+    def _precision(self):
+        return np.finfo(self.ccf.dtype).precision
+
+    @property
+    def _eps(self):
+        return np.finfo(self.ccf.dtype).eps
 
     def __repr__(self):
         if self.filename is None:
@@ -461,47 +463,31 @@ class Indicators:
 
 
     def check(self, verbose=False):
-        """
-        Check if the calculated RV, RVerror, and FWHM match the pipeline values
-        """
+        """ Check if the iCCF calculated values match the pipeline values """
         Q = {
             'RV': (self.RV, self.pipeline_RV),
             'RVerror': (self.RVerror, self.pipeline_RVerror),
             'FWHM': (self.FWHM, self.pipeline_FWHM),
+            'contrast': (self.contrast, self.pipeline_CONTRAST),
+            'BIS': (self.BIS, self.pipeline_BIS),
         }
+        digits = self._precision
+        matches = True
         for q, (val1, val2) in Q.items():
-            try:
+            if verbose:
+                print(f'comparing {q:8s}: calculated/pipeline:', end=' ')
+                mag1 = max(0, int(np.log10(val1)))
+                mag2 = max(0, int(np.log10(val2)))
+                print(f'{val1:.{digits - mag1}f} / {val2:.{digits - mag2}f}',
+                      end=' ')
+            if np.allclose(val1, val2, rtol=0.0, atol=self._eps):
                 if verbose:
-                    print(f'comparing {q:8s}: calculated/pipeline:', end=' ')
-                    print(f'{val1:.{self._nEPS}f} / {val2:.{self._nEPS}f}', end=' ')
-                np.testing.assert_almost_equal(val1, val2, self._nEPS, err_msg='')
+                    print("✓")
+            else:
+                matches = False
                 if verbose:
-                    print('✓')
-            except ValueError as e:
-                no_stack_warning(str(e))
-
-        # try:
-        #     val1, val2 = self.RVerror, self.pipeline_RVerror
-        #     if verbose:
-        #         print('comparing RVerror calculated/pipeline:', end=' ')
-        #         print(f'{val1:.{self._nEPS}f} / {val2:.{self._nEPS}f}')
-        #     np.testing.assert_almost_equal(val1, val2, self._nEPS, err_msg='')
-        # except ValueError as e:
-        #     no_stack_warning(str(e))
-
-        # try:
-        #     val1, val2 = self.FWHM, self.pipeline_FWHM
-        #     if verbose:
-        #         print('comparing FWHM calculated/pipeline:', end=' ')
-        #         # print(f'{val1:.{2}f} / {val2:.{2}f}')
-        #         # no_stack_warning(
-        #         #     'As of now, FWHM is only compared to 2 decimal places')
-        #         print(f'{val1:.{self._nEPS}f} / {val2:.{self._nEPS}f}')
-        #     np.testing.assert_almost_equal(val1, val2, self._nEPS, err_msg='')
-        # except ValueError as e:
-        #     no_stack_warning(str(e))
-
-        return True  # all checks passed!
+                    print(f"X (abs diff = {np.abs(val1 - val2)})")
+        return matches
 
     @property
     def zero_ccfs(self):
