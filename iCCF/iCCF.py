@@ -105,7 +105,8 @@ class Indicators:
         return 1
 
     @classmethod
-    def from_file(cls, file, hdu_number=1, data_index=-1, sort_bjd=True, **kwargs):
+    def from_file(cls, file, hdu_number=1, data_index=-1, sort_bjd=True,
+                  keep_open=False, **kwargs):
         """
         Create an `Indicators` object from one or more fits files.
 
@@ -122,6 +123,7 @@ class Indicators:
             If True and filename is a list of files, sort them by BJD before 
             reading
         """
+        verbose = kwargs.pop('verbose', False)
 
         if isinstance(file, list) and len(file) == 1:
             file = file[0]
@@ -137,8 +139,9 @@ class Indicators:
                     indicators.append(
                         cls.from_file(f, hdu_number, data_index, sort_bjd, **kwargs))
                 except Exception as e:
-                    print(f'ERROR reading "{f}"')
-                    print(e)
+                    if verbose:
+                        print(f'ERROR reading "{f}"')
+                    raise e
 
             if sort_bjd:
                 return sorted(indicators, key=lambda i: i.bjd)
@@ -156,7 +159,6 @@ class Indicators:
 
             user, host = kwargs.pop('USER', None), kwargs.pop('HOST', None)
             port = kwargs.pop('port', 22)
-            verbose = kwargs.pop('verbose', False)
 
             rv, hdul = getRVarray(file, return_hdul=True, USER=user, HOST=host)
 
@@ -182,7 +184,10 @@ class Indicators:
             except IndexError:
                 pass
             I.HDU = hdul
-            hdul.close()
+
+            if not keep_open:
+                hdul.close()
+
             I._hdu_number = hdu_number
             I._data_index = data_index
 
