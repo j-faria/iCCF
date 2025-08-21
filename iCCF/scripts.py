@@ -166,23 +166,47 @@ def _parse_args_check_CCF():
 
     parser.add_argument('file1', type=str, help='original CCF file')
     parser.add_argument('file2', type=str, help='new CCF file')
+    parser.add_argument('-c', '--compact', action='store_true',
+                        help='only show difference in RV')
     parser.add_argument('-p', '--plot', action='store_true',
                         help='plot each CCF and their difference')
 
     args = parser.parse_args()
     return args, parser
 
-def check_CCF():
-    from .utils import float_exponent
-    args, _ = _parse_args_check_CCF()
+def print_difference_caret(v1, v2, space='     '):
+    a, b = str(v1), str(v2)
+    if a != b:
+        try:
+            size = [i for i,(_a, _b) in enumerate(zip(a, b)) if _a != _b][0]
+            print(space + (' ' * (size+1)) + '^')
+        except IndexError:
+            pass
 
-    print('Comparing CCFs from')
-    print('  ', args.file1)
-    print('  ', args.file2)
-    print()
+def check_CCF(file1=None, file2=None, compact=False, plot=False):
+    from .utils import float_exponent
+
+    if file1 is None and file2 is None:
+        args, _ = _parse_args_check_CCF()
+    else:
+        args = argparse.Namespace(file1=file1, file2=file2,
+                                  compact=compact, plot=plot)
+
+    if not args.compact:
+        print('Comparing CCFs from')
+        print('  ', args.file1)
+        print('  ', args.file2)
+        print()
 
     i1 = iCCF.Indicators.from_file(args.file1)
     i2 = iCCF.Indicators.from_file(args.file2)
+
+    if args.compact:
+        print(' km  m cm')
+        print(f'{i1.RV:<15.10f} - {args.file1}')
+        print(f'{i2.RV:<15.10f} - {args.file2}')
+        print_difference_caret(i1.RV, i2.RV, space='')
+        return
 
     print('Absolute differences:')
     a = i1._SCIDATA - i2._SCIDATA
@@ -195,13 +219,8 @@ def check_CCF():
     print()
     print('  RV:', i1.RV, '(pipe RV=', i1.pipeline_RV, ')')
     print('    :', i2.RV)
-    a, b = str(i1.RV), str(i2.RV)
-    if a != b:
-        try:
-            size = [i for i,(_a, _b) in enumerate(zip(a, b)) if _a != _b][0]
-            print('     ' + (' ' * (size+1)) + '^')
-        except IndexError:
-            pass
+    print_difference_caret(i1.RV, i2.RV)
+
     print()
     print('FWHM:', i1.FWHM, '(pipe FWHM=', i1.pipeline_FWHM, ')')
     print('    :', i2.FWHM)
@@ -216,13 +235,28 @@ def check_CCF():
     if args.plot:
         if i1.rv.size != i2.rv.size:
             print('Warning: RV arrays are not the same size')
-            _, ax = plt.subplots(1, 1, constrained_layout=True)
+            fig, ax = plt.subplots(1, 1, constrained_layout=True)
             i1.plot(ax)
             i2.plot(ax)
         else:
-            _, axs = plt.subplots(2, 1, constrained_layout=True, height_ratios=(3, 1))
-            i1.plot(axs[0])
-            i2.plot(axs[0])
-            axs[1].plot(i1.rv, i1.ccf - i2.ccf, 'k.')
-            axs[1].set(xlabel='RV [km/s]', ylabel='CCF difference')
+            # fig, axs = plt.subplots(2, 1, constrained_layout=True, height_ratios=(3, 1))
+            fig, axs = plt.subplot_mosaic('ac\nbd', constrained_layout=True, height_ratios=(3, 1))
+            i1.plot(axs['a'])
+            i2.plot(axs['a'])
+            axs['a'].legend().remove()
+            axs['b'].plot(i1.rv, i1.ccf - i2.ccf, 'k.')
+            axs['b'].set(xlabel='RV [km/s]', ylabel='CCF difference')
+
+            i1.plot_individual_CCFs(ax=axs['c'], color='C0', alpha=0.6)
+            i2.plot_individual_CCFs(ax=axs['c'], color='C1', alpha=0.6)
+            diff = i1._SCIDATA - i2._SCIDATA
+            x = i1._get_x_for_plot_individual_CCFs()
+            for _x, _diff in zip(x, diff):
+                axs['d'].plot(_x, _diff, 'k', alpha=0.6)
+            axs['d'].set(xlabel='spectral order', ylabel='CCF difference')
+
+            axs['b'].sharex(axs['a'])
+            axs['d'].sharex(axs['c'])
+
         plt.show()
+        return fig
