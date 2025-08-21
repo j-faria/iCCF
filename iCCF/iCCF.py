@@ -18,8 +18,7 @@ from .gaussian import gauss, gaussfit, FWHM as FWHMcalc, RV, RVerror, contrast
 from .bisector import BIS, BIS_HARPS as BIS_HARPS_calc, BIS_ESP as BIS_ESP_calc
 from .vspan import vspan
 from .wspan import wspan
-from .keywords import (getRV, getRVerror, getFWHM, getBIS, getBJD, getMASK, getRVarray,
-                       getINSTRUMENT, getOBJECT)
+from .keywords import (getRVerror, getBJD, getRVarray, getINSTRUMENT)
 from . import writers
 from .ssh_files import ssh_fits_open
 from .utils import no_stack_warning, one_line_warning
@@ -50,6 +49,8 @@ def rdb_names(names):
 
 class Indicators:
     """ Class to hold CCFs and CCF indicators """
+    _warnings = True
+
     def __init__(self, rv, ccf, eccf=None, RV_on=True, FWHM_on=True,
                  BIS_on=True, Vspan_on=True, Wspan_on=True, contrast_on=True,
                  BIS_HARPS=False):
@@ -195,6 +196,8 @@ class Indicators:
 
     @property
     def OBJECT(self):
+        """ OBJECT keyword in the header """
+        from .keywords import getOBJECT
         return getOBJECT(self.filename, hdul=self.HDU)
 
     @property
@@ -206,6 +209,7 @@ class Indicators:
     @property
     def mask(self):
         """ Mask used for the CCF calculation """
+        from .keywords import getMASK
         return getMASK(self.filename, hdul=self.HDU)
 
     @property
@@ -222,9 +226,10 @@ class Indicators:
     def guess_rv(self, value):
         self._guess_rv = value
 
+    ############################################################################
     @property
     def RV(self):
-        """ The measured radial velocity, from a Gaussian fit to the CCF [km/s] """
+        """ Radial velocity, from a Gaussian fit to the CCF [km/s] """
         eccf = self.eccf if self._use_errors else None
         try:
             return RV(self.rv, self.ccf, eccf, guess_rv=self._guess_rv)
@@ -233,7 +238,7 @@ class Indicators:
 
     @property
     def RVerror(self):
-        """ Photon-noise uncertainty on the measured radial velocity [km/s] """
+        """ Photon-noise uncertainty on the radial velocity [km/s] """
         if self.eccf is not None:  # CCF uncertainties were provided
             if self.eccf.size != self.ccf.size:
                 raise ValueError('CCF and CCF errors not of the same size')
@@ -353,45 +358,52 @@ class Indicators:
         """ All the indicators that are on """
         return tuple(self.__getattribute__(i) for i in self.on_indicators)
 
+    def _check_for_HDU(self):
+        if not hasattr(self, 'HDU') or self.HDU is None:
+            raise ValueError('Cannot access header (no HDU attribute)')
+
     @property
     def pipeline_RV(self):
         """
         The radial velocity as derived by the pipeline, from the header.
         """
-        if not hasattr(self, 'HDU') or self.HDU is None:
-            raise ValueError('Cannot access header (no HDU attribute)')
-
+        self._check_for_HDU()
+        from .keywords import getRV
         return getRV(None, hdul=self.HDU)
 
     @property
     def pipeline_FWHM(self):
         """
-        The FWHM as derived by the pipeline, from the header.
+        The CCF FWHM as derived by the pipeline, from the header.
         """
-        if not hasattr(self, 'HDU'):
-            raise ValueError('Cannot access header (no HDU attribute)')
-
+        self._check_for_HDU()
+        from .keywords import getFWHM
         return getFWHM(None, hdul=self.HDU)
+
+    @property
+    def pipeline_CONTRAST(self):
+        """
+        The CCF contrast as derived by the pipeline, from the header.
+        """
+        self._check_for_HDU()
+        from .keywords import getCONTRAST
+        return getCONTRAST(None, hdul=self.HDU)
 
     @property
     def pipeline_BIS(self):
         """
-        The BIS SPAN as derived by the pipeline, from the header.
+        The CCF BIS SPAN as derived by the pipeline, from the header.
         """
-        if not hasattr(self, 'HDU'):
-            raise ValueError('Cannot access header (no HDU attribute)')
-
+        self._check_for_HDU()
+        from .keywords import getBIS
         return getBIS(None, hdul=self.HDU)
-
 
     @property
     def pipeline_RVerror(self):
         """ 
         The RV error as derived by the pipeline, from the header.
         """
-        if not hasattr(self, 'HDU'):
-            raise ValueError('Cannot access header (no HDU attribute)')
-
+        self._check_for_HDU()
         return getRVerror(None, hdul=self.HDU)
 
     def recalculate_ccf(self, orders=None, weighted=False):
