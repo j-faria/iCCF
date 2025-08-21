@@ -264,47 +264,7 @@ class Indicators:
 
         return RVerror(self.rv, self.ccf, eccf)
 
-    @property
-    # @lru_cache
-    def individual_RV(self):
-        """ Individual radial velocities for each spectral order """
-        if not hasattr(self, 'HDU'):
-            raise ValueError('Cannot access individual CCFs (no HDU attribute)')
-        from .gaussian import fwhm2sig
-        RVs = []
-        for ccf in self._SCIDATA[:-1]:
-            if np.nonzero(ccf)[0].size == 0:
-                RVs.append(np.nan)
-            else:
-                try:
-                    # p0 = [-np.ptp(ccf), self.RV, fwhm2sig(self.FWHM), ccf.mean()]
-                    RVs.append(RV(self.rv, ccf))
-                except RuntimeError:
-                    RVs.append(np.nan)
-
-        return np.array(RVs)
-
-    @property
-    # @lru_cache
-    def individual_RVerror(self):
-        """ Individual radial velocity errors for each spectral order """
-        if not hasattr(self, 'HDU'):
-            raise ValueError(
-                'Cannot access individual CCFs (no HDU attribute)')
-
-        if not hasattr(self, '_ERRDATA'):
-            return np.full_like(self.individual_RV, np.nan)
-
-        RVes = []
-        CCFs, eCCFs = self._SCIDATA, self._ERRDATA
-        for ccf, eccf in zip(CCFs[:-1], eCCFs[:-1]):
-            if np.nonzero(ccf)[0].size == 0:
-                RVes.append(np.nan)
-            else:
-                RVes.append(RVerror(self.rv, ccf, eccf))
-
-        return np.array(RVes)
-
+    ############################################################################
     @property
     def FWHM(self):
         """ The full width at half maximum of the CCF [km/s] """
@@ -318,27 +278,32 @@ class Indicators:
     @property
     def FWHMerror(self):
         """ Photon noise uncertainty on the FWHM of the CCF [km/s] """
-        warnings.formatwarning = one_line_warning
-        warnings.warn('FWHMerror is currently just 2 x RVerror')
+        if self._warnings:
+            warnings.formatwarning = one_line_warning
+            warnings.warn('FWHMerror is currently just 2 x RVerror')
         return 2.0 * self.RVerror
 
+    ############################################################################
     @property
     def BIS(self):
         """ Bisector span [km/s] """
-        warnings.warn('BIS currently does NOT match the ESPRESSO pipeline')
+        # if self._warnings:
+        #     warnings.formatwarning = one_line_warning
+        #     warnings.warn('BIS currently does NOT match the ESPRESSO pipeline')
         if self._use_bis_from_HARPS:
             return BIS_HARPS_calc(self.rv, self.ccf)
         else:
             return BIS_ESP_calc(self.rv, self.ccf)[0]
-            # return BIS(self.rv, self.ccf)
 
     @property
     def BISerror(self):
         """ Photon noise uncertainty on the BIS of the CCF [km/s] """
-        warnings.warn('BISerror is currently just 2 x RVerror')
+        if self._warnings:
+            warnings.formatwarning = one_line_warning
+            warnings.warn('BISerror is currently just 2 x RVerror')
         return 2.0 * self.RVerror
 
-
+    ############################################################################
     @property
     def Vspan(self):
         """ Vspan indicator [km/s], see Boisse et al. (2011b, A&A 528 A4) """
@@ -349,15 +314,76 @@ class Indicators:
         """ Wspan indicator [km/s], see Santerne et al. (2015, MNRAS 451, 3) """
         return wspan(self.rv, self.ccf)
 
+    ############################################################################
     @property
     def contrast(self):
         """ The contrast (depth) of the CCF, measured in percentage """
-        return contrast(self.rv, self.ccf, self.eccf)
+        eccf = self.eccf if self._use_errors else None
+        return contrast(self.rv, self.ccf, eccf)
 
     @property
     def contrast_error(self):
         """ Uncertainty on the contrast (depth) of the CCF, measured in percentage """
         return contrast(self.rv, self.ccf, self.eccf, error=True)
+
+    ############################################################################
+    def individual_value(self, function, needs_errors=False, **kwargs):
+        if not hasattr(self, 'HDU'):
+            raise ValueError('Cannot access individual CCFs (no HDU attribute)')
+
+        if needs_errors:
+            if not hasattr(self, '_ERRDATA'):
+                return np.full_like(self.individual_RV, np.nan)
+
+        vals = np.zeros(self.norders, dtype=self._SCIDATA.dtype)
+        for i, ccf in enumerate(self._SCIDATA[:-1]):
+            if np.count_nonzero(ccf) == 0:
+                vals[i] = np.nan
+            else:
+                try:
+                    if self._use_errors or needs_errors:
+                        eccf = self._ERRDATA[i, :]
+                    else:
+                        eccf = None
+                    vals[i] = function(self.rv, ccf, eccf, **kwargs)
+                except RuntimeError:
+                    vals[i] = np.nan
+        return vals
+
+    @property
+    def individual_RV(self):
+        """ Individual radial velocities for each spectral order [km/s] """
+        return self.individual_value(RV)
+
+    @property
+    def individual_RVerror(self):
+        """ Individual radial velocity errors for each spectral order [km/s] """
+        return self.individual_value(RVerror, needs_errors=True)
+
+    @property
+    def individual_FWHM(self):
+        """ Individual FWHM for each spectral order [km/s] """
+        return self.individual_value(FWHMcalc)
+
+    @property
+    def individual_FWHMerror(self):
+        """ Individual FWHM errors for each spectral order [km/s] """
+        if self._warnings:
+            warnings.formatwarning = one_line_warning
+            warnings.warn('FWHMerror is currently just 2 x RVerror')
+        return 2.0 * self.individual_RVerror
+
+    @property
+    def individual_contrast(self):
+        """ The contrast (depth) of the CCF for each spectral order [%] """
+        return self.individual_value(contrast)
+
+    @property
+    def individual_contrast_error(self):
+        """ Uncertainty on the contrast (depth) of the CCF for each spectral order [%] """
+        return self.individual_value(contrast, needs_errors=True, error=True)
+
+    ############################################################################
 
 
     @property
@@ -413,6 +439,7 @@ class Indicators:
         self._check_for_HDU()
         return getRVerror(None, hdul=self.HDU)
 
+    ############################################################################
     def recalculate_ccf(self, orders=None, weighted=False):
         """
         Recompute the final CCF from the CCFs of individual orders
