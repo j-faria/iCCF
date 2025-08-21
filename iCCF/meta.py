@@ -360,10 +360,13 @@ def calculate_s2d_ccf_parallel(s2dfile, rvarray, mask, mask_width=0.5, order='al
         print(f'Using {ncores} CPU cores for the calculation')
 
     if order == 'all':
-        orders = range(hdu[1].data.shape[0])
+        orders = range(norders)
         return_sum = True
         if verbose:
             pass
+    elif isinstance(order, range):
+        orders = order
+        return_sum = True
     else:
         assert isinstance(order, int), 'order should be integer'
         orders = (order, )
@@ -643,7 +646,11 @@ def calculate_ccf(filename, mask=None, rvarray=None, **kwargs):
     #     ccf, ccfe, ccfq, kw = calculate_s1d_ccf_parallel(
     #         filename, rvarray, full_output=True, **kwargs)
     # else:
-    ccf, ccfe, ccfq, kw = calculate_s2d_ccf_parallel(filename, rvarray, order='all', 
+
+    order = kwargs.pop('order', 'all')
+    order = kwargs.pop('orders', order)
+
+    ccf, ccfe, ccfq, kw = calculate_s2d_ccf_parallel(filename, rvarray, order=order, 
                                                      full_output=True, **kwargs)
 
     # in the pipeline, data are saved as floats
