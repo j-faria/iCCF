@@ -97,6 +97,20 @@ class Mask:
         else:
             raise KeyError(key)
 
+    def remove_line(self, index):
+        """
+        Remove the `index`th line from the mask. Note that subsequent calls to
+        this method will shift the indices of the remaining lines. For example,
+        to remove the first two lines call `mask.remove_line(0)` twice.
+        """
+        self.wavelength = np.delete(self.wavelength, index)
+        self.contrast = np.delete(self.contrast, index)
+    
+    def remove_lines(self, indices):
+        """ Remove the lines at the given indices. See also `remove_line` """
+        self.wavelength = np.delete(self.wavelength, indices)
+        self.contrast = np.delete(self.contrast, indices)
+
     def select_wavelength(self, min=None, max=None):
         """ Select lines based on min or max wavelengths """
         λ = self.wavelength
@@ -126,6 +140,43 @@ class Mask:
 
         self.wavelength = self._wavelength[mask].copy()
         self.contrast = self._contrast[mask].copy()
+
+    def remove_wavelengths_between(self, min, max):
+        """
+        Remove lines with wavelength between `min` and `max`. Both arguments can
+        be floats or arrays (of the same shape).
+        """
+        if isinstance(min, (list, np.ndarray)) or isinstance(max, (list, np.ndarray)):
+            if type(min) is not type(max) or len(min) != len(max):
+                raise ValueError('min and max must be arrays of the same shape')
+            min = np.atleast_1d(min)
+            max = np.atleast_1d(max)
+            larger = self.wavelength > min[:, None]
+            smaller = self.wavelength < max[:, None]
+            mask = np.logical_and(larger, smaller).sum(axis=0).astype(bool)
+            print(f'removing {mask.sum()} lines')
+            self.wavelength = self.wavelength[~mask].copy()
+            self.contrast = self.contrast[~mask].copy()
+            return
+
+        if isinstance(min, float):
+            min = np.full_like(self.wavelength, min)
+        if isinstance(max, float):
+            max = np.full_like(self.wavelength, max)
+
+        mask = (self.wavelength > min) & (self.wavelength < max)
+        self.wavelength = self.wavelength[~mask].copy()
+        self.contrast = self.contrast[~mask].copy()
+
+    def invert(self):
+        """ Invert the line selection in the mask (if any) """
+        if self.wavelength.size == self._wavelength.size:
+            print('no lines have been removed from the mask')
+            return
+        diff = np.setdiff1d(self._wavelength, self.wavelength)
+        ind = np.intersect1d(diff, self._wavelength, return_indices=True)[2]
+        self.wavelength = self._wavelength[ind]
+        self.contrast = self._contrast[ind]
 
     def reset(self):
         """ Reset the mask to the original lines """
