@@ -16,5 +16,8 @@ from .masks import Mask
 from .chromatic import chromaticRV
 
 # from .iCCF import EPS, nEPS
+
 from .iCCF import Indicators
 from_file = Indicators.from_file
+
+from .iCCF import bjd, vrad, svrad

@@ -633,3 +633,14 @@ def indicators_from_files(files, rdb_format=True, show=True, show_bjd=True,
                                                for ind in I.all]))
         else:
             print((bjd, ) + I.all)
+
+
+
+def bjd(I: list[Indicators]):
+    return np.array([i.bjd for i in I])
+
+def vrad(I: list[Indicators]):
+    return np.array([i.RV for i in I])
+
+def svrad(I: list[Indicators]):
+    return np.array([i.RVerror for i in I])
