@@ -573,6 +573,14 @@ class Indicators:
         ax.set(xlabel='RV [km/s]', ylabel='CCF')
         return ax.figure, ax
 
+    def _get_x_for_plot_individual_CCFs(self):
+        n = self.individual_RV.size
+        x = [
+            (self.rv - self.rv[0]) / np.ptp(self.rv) - 0.5 + i
+            for i in range(1, n + 1)
+        ]
+        return x
+
     def plot_individual_CCFs(self, ax=None, show_errors=True, show_fit=False, **kwargs):
         """ Plot the CCFs for individual orders """
         if ax is None:
@@ -581,17 +589,17 @@ class Indicators:
             ax2 = None
 
         n = self.individual_RV.size
+        x = self._get_x_for_plot_individual_CCFs()
         for i in range(1, n + 1):
-            _x = (self.rv - self.rv[0]) / np.ptp(self.rv) - 0.5 + i
             if show_errors:
-                ax.errorbar(_x, self._SCIDATA[i - 1], self._ERRDATA[i - 1], **kwargs)
+                ax.errorbar(x[i-1], self._SCIDATA[i - 1], self._ERRDATA[i - 1], **kwargs)
             else:
-                ax.plot(_x, self._SCIDATA[i - 1], **kwargs)
+                ax.plot(x[i-1], self._SCIDATA[i - 1], **kwargs)
 
             if show_fit:
                 try:
                     p = gaussfit(self.rv, self._SCIDATA[i - 1])
-                    ax.plot(_x, gauss(self.rv, p), 'k', alpha=0.7)
+                    ax.plot(x[i-1], gauss(self.rv, p), 'k', alpha=0.7)
                     ax.text(i, np.max(self._SCIDATA[i - 1]), f'{p[1]:.3f} m/s',
                             rotation=60, fontsize=8)
                 except RuntimeError:
