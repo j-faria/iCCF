@@ -453,11 +453,12 @@ class Indicators:
             return self.ccf
 
         warnings.warn('In this function, orders are 1-based. Make sure the right orders are being used!')
-        print(orders - 1)
 
         if isinstance(orders, int):
             return self._SCIDATA[orders - 1]
         else:
+            if isinstance(orders, slice):
+                orders = np.arange(self.norders)[orders]
             if weighted:
                 has_errors = np.where([(self._ERRDATA[j] != 0).all() for j in range(self.norders)])[0]
                 orders = np.array(orders)[np.isin(orders, has_errors)]
