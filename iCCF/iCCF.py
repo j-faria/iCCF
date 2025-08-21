@@ -20,7 +20,6 @@ from .vspan import vspan
 from .wspan import wspan
 from .keywords import (getRVerror, getBJD, getRVarray, getINSTRUMENT)
 from . import writers
-from .ssh_files import ssh_fits_open
 from .utils import no_stack_warning, one_line_warning
 
 
@@ -678,6 +677,32 @@ def indicators_from_files(files, rdb_format=True, show=True, show_bjd=True,
         else:
             print((bjd, ) + I.all)
 
+
+def recreate_ccf_file(file, overwrite=False, add_comments=True):
+    I = Indicators.from_file(file, keep_open=True)
+    new_file = file.replace('.fits', '.iccf.fits')
+
+    order_by_order_values = (
+        I.individual_RV, I.individual_RVerror,
+        I.individual_FWHM, I.individual_FWHMerror
+    )
+    for i, (rv, erv, fwhm, efwhm) in enumerate(zip(*order_by_order_values)):
+        if np.isnan(rv) or np.isnan(erv):
+            rv, erv = 'NaN', 'NaN'
+            fwhm, efwhm = 'NaN', 'NaN'
+
+        for k, v in (
+            (f'HIERARCH ICCF ORDER{i+1} CCF RV',         (rv,    f'Radial velocity of order {i+1} [km/s]')                if add_comments else rv   ),
+            (f'HIERARCH ICCF ORDER{i+1} CCF RV ERROR',   (erv,   f'Uncertainty on radial velocity of order {i+1} [km/s]') if add_comments else erv  ),
+            (f'HIERARCH ICCF ORDER{i+1} CCF FWHM',       (fwhm,  f'CCF FWHM of order {i+1} [km/s]')                       if add_comments else fwhm ),
+            (f'HIERARCH ICCF ORDER{i+1} CCF FWHM ERROR', (efwhm, f'Uncertainty on CCF FWHM of order {i+1} [km/s]')        if add_comments else efwhm),
+        ):
+            I.HDU[0].header[k] = v
+
+    I.HDU.writeto(new_file, output_verify='exception', checksum=True,
+                  overwrite=overwrite)
+
+    return new_file
 
 
 def bjd(I: list[Indicators]):
