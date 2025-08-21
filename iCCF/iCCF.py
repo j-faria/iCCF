@@ -532,7 +532,8 @@ class Indicators:
     def to_rdb(self, filename='stdout', clobber=False):
         return writers.to_rdb(self, filename, clobber)
 
-    def plot(self, ax=None, show_fit=True, show_bisector=False, over=0):
+    def plot(self, ax=None, show_fit=True, show_bisector=False,
+             show_residuals=False, over=0):
         """ Plot the CCF, together with the Gaussian fit and the bisector """
         if ax is None:
             _, ax = plt.subplots(constrained_layout=True)
@@ -555,14 +556,18 @@ class Indicators:
             ax.plot(vv, gauss(vv, pfit),
                     label=f'Gaussian fit (RV={self.RV:.3f} km/s)')
 
+        if show_residuals:
+            ax.errorbar(self.rv, self.ccf - gauss(self.rv, pfit), eccf,
+                        fmt='s-', ms=3, label='residuals')
+
         if show_bisector:
             out = BIS(self.rv, self.ccf, full_output=True)
             bisf = out[-1]
             top_limit = out[-4][1]
             bot_limit = out[-5][0]
             yy = np.linspace(bot_limit, top_limit, 25)
-            ax.plot(bisf(yy), yy, '-s',
-                    label=f'Bisector (BIS={self.BIS*1e3:.3f} m/s)')
+            ax.plot(bisf(yy), yy, '-s', ms=3,
+                    label=f'bisector (BIS={self.BIS*1e3:.3f} m/s)')
 
         ax.legend(loc='upper right', bbox_to_anchor=(1.0, 1.15))
         ax.set(xlabel='RV [km/s]', ylabel='CCF')
