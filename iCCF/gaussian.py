@@ -333,15 +333,16 @@ def contrast(rv, ccf, eccf=None, error=False, **kwargs):
     """
     A, _, _, continuum = gaussfit(rv, ccf, yerr=eccf, **kwargs)
     if not error:
-        return abs(100 * A / continuum)
+        return 100.0 * abs(A / continuum)
     else:
-        ## error propagation
+        ## error propagation:
         # (A, _, _, continuum), (sA, _, _, sc) = gaussfit(rv, ccf, return_errors=True)
         # return abs(100 * (A / continuum) * np.hypot(sA / A, sc / continuum))
-        ## as in the ESPRESSO pipeline
+        ## as in the ESPRESSO pipeline:
         fwhm = FWHM(rv, ccf, eccf, **kwargs)
         snr = RVerror(rv, ccf, eccf)  # 1.0 / sqrt(ccf_sum)
-        return abs(snr * 2 / fwhm * A)
+        sig_A = abs(snr * 2 / fwhm * A)
+        return 100 * (sig_A / continuum)
 
 
 def mexican_hat(x, p):
