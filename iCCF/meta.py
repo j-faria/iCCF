@@ -617,12 +617,14 @@ def calculate_ccf(filename, mask=None, rvarray=None, **kwargs):
     kwargs['mask'] = mask
 
     output = kwargs.pop('output', None)
+    keep_prefix = kwargs.pop('keep_prefix', False)
+
     if output:
         ccf_file = output
         ccf_file += '' if ccf_file.endswith('.fits') else '.fits'
     else:
         end = f'_CCF_{mask_str}_iCCF.fits'
-        if kwargs.pop('keep_prefix', False):
+        if keep_prefix:
             ccf_file = os.path.splitext(filename)[0] + end
         else:
             ccf_file = os.path.splitext(file)[0] + end
