@@ -705,11 +705,11 @@ def recreate_ccf_file(file, overwrite=False, add_comments=True):
     return new_file
 
 
-def bjd(I: list[Indicators]):
-    return np.array([i.bjd for i in I])
+def bjd(ind: list):
+    return np.array([i.bjd for i in ind])
 
-def vrad(I: list[Indicators]):
-    return np.array([i.RV for i in I])
+def vrad(ind: list):
+    return np.array([i.RV for i in ind])
 
-def svrad(I: list[Indicators]):
-    return np.array([i.RVerror for i in I])
+def svrad(ind: list):
+    return np.array([i.RVerror for i in ind])
