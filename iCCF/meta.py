@@ -576,6 +576,10 @@ def calculate_ccf(filename, mask=None, rvarray=None, **kwargs):
             it from the S2D file
         clobber (bool, default True):
             Whether to replace output CCF file even if it exists.
+        keep_prefix (bool, default False):
+            If True and `filename` has a directory prefix, the output CCF file
+            will be saved in that same directory. Otherwise, it will be saved in
+            the current directory.
         verbose (bool, default True):
             Print status messages and progress bar.
         **kwargs
@@ -618,7 +622,10 @@ def calculate_ccf(filename, mask=None, rvarray=None, **kwargs):
         ccf_file += '' if ccf_file.endswith('.fits') else '.fits'
     else:
         end = f'_CCF_{mask_str}_iCCF.fits'
-        ccf_file = os.path.splitext(filename)[0] + end
+        if kwargs.pop('keep_prefix', False):
+            ccf_file = os.path.splitext(filename)[0] + end
+        else:
+            ccf_file = os.path.splitext(file)[0] + end
 
     clobber = kwargs.pop('clobber', True)
     if os.path.exists(ccf_file) and not clobber:

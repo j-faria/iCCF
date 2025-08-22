@@ -79,8 +79,14 @@ def _parse_args_make_CCF():
                 'A file called `INST_[mask].fits` should exist.'
     parser.add_argument('-m', '--mask', type=str, help=help_mask)
 
-    parser.add_argument('-rv', type=str,
+    parser.add_argument('-rv', '--rv', type=str,
                         help='RV array, in the form start:end:step [km/s]')
+    parser.add_argument('--rv-range', type=float,
+                        help='Full RV range where to calculate CCF [km/s]')
+
+    parser.add_argument('--keep-prefix', action='store_true',
+                        help='Keep any prefix of the S2D file on the output file')
+
 
     default_ncores = get_ncores()
     help_ncores = 'Number of cores to distribute calculation; '\
@@ -122,7 +128,13 @@ def make_CCF():
                     OBJ_RV = header['HIERARCH ESO TEL TARG RADVEL']
                 start = header['HIERARCH ESO RV START']
                 step = header['HIERARCH ESO RV STEP']
-                end = OBJ_RV + (OBJ_RV - start)
+
+                if args.rv_range is not None:
+                    start = OBJ_RV - float(args.rv_range)
+                    end = OBJ_RV + float(args.rv_range)
+                else:
+                    end = OBJ_RV + (OBJ_RV - start)
+
                 print('Using RV array from S2D file:',
                       f'{start} : {end} : {step} km/s')
                 rvarray = np.arange(start, end + step, step)
@@ -130,8 +142,10 @@ def make_CCF():
                 print('Could not find RV start and step in S2D file. Please use the -rv argument.')
                 sys.exit(1)
         else:
+            args.rv = args.rv.replace('"', '').replace("'", '')
             start, end, step = map(float, args.rv.split(':'))
             rvarray = np.arange(start, end + step, step)
+            print(f'Using RV array: {start} : {end} : {step} km/s')
 
         inst = header['INSTRUME']
 
@@ -155,6 +169,7 @@ def make_CCF():
 
         meta.calculate_ccf(file, mask=mask, rvarray=rvarray,
                            ncores=args.ncores, output=args.output,
+                           keep_prefix=args.keep_prefix,
                            # ssh=args.ssh
                            )
 
