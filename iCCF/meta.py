@@ -125,6 +125,46 @@ def find_blaze(s2dfile, hdu=None):
         if v == 'BLAZE_A':
             return k, header[k.replace('CATG', 'NAME')]
 
+def setup_blaze(ignore_blaze, smart_blaze, s2dfile, hdu, ssh, verbose):
+    # find and read the blaze file
+    if ignore_blaze:
+        blaze = np.ones_like(hdu[1].data)
+    else:
+        _, blazefile = find_blaze(None, hdu=hdu)
+        try:
+            blazefile = find_file(blazefile, ssh, verbose)
+        except FileNotFoundError:
+            for replacement in [(':', '_'), (':', '%3A')]:
+                try:
+                    blazefile = find_file(blazefile.replace(*replacement), ssh, verbose)
+                    break
+                except FileNotFoundError:
+                    pass
+            else:
+                if smart_blaze:
+                    if verbose:
+                        print('Could not find blaze file. Trying smart blaze')
+                else:
+                    raise FileNotFoundError(f'Could not find BLAZE file: {blazefile}') from None
+
+        if smart_blaze:
+            # assert 'S2D_A' in s2dfile, 'Not a de-blazed S2D file'
+            s2d_blaze_file = s2dfile.replace('S2D_SKYSUB_A', 'S2D_A')
+            s2d_blaze_file = s2d_blaze_file.replace('S2D_A', 'S2D_BLAZE_A')
+            s2d_blaze_file = s2d_blaze_file.replace('S2D_TELL_CORR_A', 'S2D_BLAZE_TELL_CORR_A')
+            if verbose:
+                print(f'Using file {s2d_blaze_file} for blaze correction')
+            if os.path.exists(s2d_blaze_file):
+                with fits.open(s2d_blaze_file) as hdu_s2d_blaze:
+                    with np.errstate(invalid='ignore'):
+                        blaze = hdu_s2d_blaze[1].data / hdu[1].data
+            else:
+                raise FileNotFoundError(f'Could not find file: {s2d_blaze_file}') from None
+        else:
+            with fits.open(blazefile) as hdu_blaze:
+                blaze = hdu_blaze[1].data
+
+    return blaze
 
 def calculate_s2d_ccf(s2dfile, rvarray, order='all',
                       mask_file='ESPRESSO_G2.fits', mask=None, mask_width=0.5,
@@ -382,45 +422,7 @@ def calculate_s2d_ccf_parallel(s2dfile, rvarray, mask, mask_width=0.5, order='al
         print(f'BERVMAX: {BERVMAX} km/s')
         print(f'BERV: {BERV} km/s')
 
-    # find and read the blaze file
-    if ignore_blaze:
-        blaze = np.ones_like(hdu[1].data)
-    else:
-        _, blazefile = find_blaze(None, hdu=hdu)
-        try:
-            blazefile = find_file(blazefile, ssh, verbose)
-        except FileNotFoundError:
-            for replacement in [(':', '_'), (':', '%3A')]:
-                try:
-                    blazefile = find_file(blazefile.replace(*replacement), ssh, verbose)
-                    break
-                except FileNotFoundError:
-                    pass
-            else:
-                # print(f'Could not find blaze file "{blazefile}"')
-                # sys.exit(1)
-                if smart_blaze:
-                    if verbose:
-                        print('Could not find blaze file. Trying smart blaze')
-                else:
-                    raise FileNotFoundError(f'Could not find BLAZE file: {blazefile}') from None
-
-        if smart_blaze:
-            # assert 'S2D_A' in s2dfile, 'Not a de-blazed S2D file'
-            s2d_blaze_file = s2dfile.replace('S2D_SKYSUB_A', 'S2D_A')
-            s2d_blaze_file = s2d_blaze_file.replace('S2D_A', 'S2D_BLAZE_A')
-            s2d_blaze_file = s2d_blaze_file.replace('S2D_TELL_CORR_A', 'S2D_BLAZE_TELL_CORR_A')
-            if verbose:
-                print(f'Using file {s2d_blaze_file} for blaze correction')
-            if os.path.exists(s2d_blaze_file):
-                with fits.open(s2d_blaze_file) as hdu_s2d_blaze:
-                    with np.errstate(invalid='ignore'):
-                        blaze = hdu_s2d_blaze[1].data / hdu[1].data
-            else:
-                raise FileNotFoundError(f'Could not find file: {s2d_blaze_file}') from None
-        else:
-            with fits.open(blazefile) as hdu_blaze:
-                blaze = hdu_blaze[1].data
+    blaze = setup_blaze(ignore_blaze, smart_blaze, s2dfile, hdu, ssh, verbose)
 
     ll = hdu[5].data
     if ll.min() > mask['lambda'].max():
