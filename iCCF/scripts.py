@@ -275,3 +275,16 @@ def check_CCF(file1=None, file2=None, compact=False, plot=False):
 
         plt.show()
         return fig
+
+def _parse_args_recreate_CCF():
+    parser = argparse.ArgumentParser(prog='iccf-recreate-ccf')
+    parser.add_argument('file', type=str, help='CCF file')
+    parser.add_argument('--overwrite', action='store_true',
+                        help='overwrite output file if it already exists')
+    args = parser.parse_args()
+    return args, parser
+
+def recreate_CCF():
+    args, _ = _parse_args_recreate_CCF()
+    from iCCF.iCCF import recreate_ccf_file
+    recreate_ccf_file(args.file, overwrite=args.overwrite)

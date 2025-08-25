@@ -30,6 +30,7 @@ Issues = "https://github.com/j-faria/iCCF/issues"
 [project.scripts]
 iccf-make-ccf = "iCCF.scripts:make_CCF"
 iccf-check-ccf = "iCCF.scripts:check_CCF"
+iccf-recreate-ccf = "iCCF.scripts:recreate_CCF"
 
 
 [tool.setuptools]
