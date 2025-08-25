@@ -538,6 +538,7 @@ class Indicators:
             _, ax = plt.subplots(constrained_layout=True)
 
         label = os.path.basename(self.filename)
+        label = label.replace('%3A', ':')
         eccf = self.eccf if self._use_errors else None
 
         ax.errorbar(self.rv, self.ccf, eccf, fmt='s-', ms=3, label=label)
