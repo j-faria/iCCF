@@ -129,6 +129,9 @@ def find_data_file(file):
         path = resources.files('iCCF') / 'data' / file
         if path.exists():
             return path
+        globs = list(path.parent.glob(path.stem))
+        if len(globs) > 0:
+            return globs
     except AttributeError:
         path = os.path.join(find_myself(), 'iCCF', 'data', file)
         if os.path.exists(path):
