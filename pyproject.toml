@@ -44,5 +44,7 @@ packages = ['iCCF']
 [tool.setuptools.package-data]
 iCCF = ['example_data/*.npy', 'data/*']
 
-
+[tool.setuptools_scm]
+# can be empty if no extra settings are needed, presence enables setuptools-scm
+local_scheme = "no-local-version"
 
