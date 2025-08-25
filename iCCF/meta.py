@@ -621,7 +621,7 @@ def calculate_s1d_ccf_parallel(s1dfile, rvarray, mask_file='ESPRESSO_G2.fits',
 
 
 
-def calculate_ccf(filename, mask=None, rvarray=None, clobber=True,
+def calculate_ccf(filename, mask=None, rvarray=None, output=None, clobber=True,
                   add_order_by_order_info=True, keep_prefix=False,
                   verbose=True, **kwargs):
     """
@@ -638,6 +638,9 @@ def calculate_ccf(filename, mask=None, rvarray=None, clobber=True,
         rvarray (array, optional):
             RV array where to calculate the CCF. If not provided, try to extact
             it from the S2D file
+        output (str, optional):
+            The name of the output file. If not provided, build it from the
+            provided S2D filename.
         clobber (bool, default True):
             Whether to replace output CCF file even if it exists.
         add_order_by_order_info (bool, default True):
@@ -681,8 +684,6 @@ def calculate_ccf(filename, mask=None, rvarray=None, clobber=True,
         raise TypeError('mask must be a string or a `Mask` object')
 
     kwargs['mask'] = mask
-
-    output = kwargs.pop('output', None)
 
     if output:
         ccf_file = output
