@@ -38,6 +38,10 @@ jobs:
       run: |
         pip install .
 
+    - name: Check version
+      run: |
+        python -c "import iCCF; print(iCCF.__version__)"
+
     - name: Test with pytest
       run: |
         pytest tests
