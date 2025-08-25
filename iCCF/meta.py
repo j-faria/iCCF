@@ -6,9 +6,8 @@ import subprocess
 import sys
 import time as pytime
 import warnings
-from bisect import bisect_left
+from bisect import bisect_left, bisect_right
 from glob import glob
-from itertools import product
 
 import numpy as np
 from astropy.io import fits
@@ -20,6 +19,37 @@ from iCCF.keywords import getINSTRUMENT
 from .iCCF import Indicators
 from .masks import Mask
 from .utils import get_ncores, find_data_file, disable_exception_traceback
+
+# global dictionary to store shared-memory variables
+var_dict = {}
+
+def init_worker(rvarray, rvarray_shape,
+                blaze, blaze_shape,
+                corr_model, corr_model_shape,
+                scierrdata, scierrdata_shape,
+                qualdata, qualdata_shape,
+                lldlldata, lldlldata_shape,
+                BERV, BERVMAX, mask, mask_width):
+    var_dict['rvarray'] = rvarray
+    var_dict['rvarray_shape'] = rvarray_shape
+    # 
+    var_dict['blaze'] = blaze
+    var_dict['blaze_shape'] = blaze_shape
+    #
+    var_dict['corr_model'] = corr_model
+    var_dict['corr_model_shape'] = corr_model_shape
+    ##
+    var_dict['scierrdata'] = scierrdata
+    var_dict['scierrdata_shape'] = scierrdata_shape
+    var_dict['qualdata'] = qualdata
+    var_dict['qualdata_shape'] = qualdata_shape
+    var_dict['lldlldata'] = lldlldata
+    var_dict['lldlldata_shape'] = lldlldata_shape
+    ##
+    var_dict['BERV'] = BERV
+    var_dict['BERVMAX'] = BERVMAX
+    var_dict['mask'] = mask
+    var_dict['mask_width'] = mask_width
 
 
 def espdr_compute_CCF_fast(ll, dll, flux, error, blaze, quality, RV_table,
@@ -106,14 +136,11 @@ def espdr_compute_CCF_fast(ll, dll, flux, error, blaze, quality, RV_table,
 
     return ccf_flux, ccf_error, ccf_quality
 
-
 def check_if_deblazed(s2dfile):
     if 'S2D_BLAZE' in s2dfile:
         return False
     if 'S2D_A.fits' in s2dfile:
         return True
-    
-
 
 def find_blaze(s2dfile, hdu=None):
     if hdu is None:
@@ -251,7 +278,6 @@ def calculate_s2d_ccf(s2dfile, rvarray, order='all',
     else:
         return np.array(ccfs), np.array(ccfes)
 
-
 def find_file(file, ssh=None, verbose=True):
     if verbose:
         print('Looking for file:', file)
@@ -314,27 +340,29 @@ def find_file(file, ssh=None, verbose=True):
             raise RuntimeError(f'Could not scp {file} from {ssh}') from None
 
 
+def _dowork(order):
+    BERV = var_dict['BERV']
+    BERVMAX = var_dict['BERVMAX']
+    mask = var_dict['mask']
+    mask_width = var_dict['mask_width']
 
-def _dowork(args):
-    order, kwargs = args
-    data = kwargs['data']
-    dll = kwargs['dll'][order]
-    blaze = kwargs['blaze'][order]
-    corr_model = kwargs['corr_model']
-    rvarray = kwargs['rvarray']
-    mask = kwargs['mask']
-    BERV = kwargs['BERV']
-    BERVMAX = kwargs['BERVMAX']
-    mask_width = kwargs['mask_width']
+    # rebuild shared memory arrays as numpy arrays
+    rvarray = np.frombuffer(var_dict['rvarray']).reshape(var_dict['rvarray_shape'])
+    # for these, we just need the order-th row
+    blaze = np.frombuffer(var_dict['blaze']).reshape(var_dict['blaze_shape'])[order]
+    corr_model = np.frombuffer(var_dict['corr_model']).reshape(var_dict['corr_model_shape'])[order]
 
-    # WAVEDATA_AIR_BARY
-    ll = data[5][order, :]
+    quality = np.frombuffer(var_dict['qualdata'], dtype=np.uint16).reshape(var_dict['qualdata_shape'])[order]
 
-    flux = data[1][order, :]
-    error = data[2][order, :]
-    quality = data[3][order, :]
+    scierrdata = np.frombuffer(var_dict['scierrdata'], dtype=np.float32).reshape(var_dict['scierrdata_shape'])
+    flux = scierrdata[0, order] # SCIDATA
+    error = scierrdata[1, order] # ERRDATA
 
-    y = flux * blaze / corr_model[order]
+    lldlldata = np.frombuffer(var_dict['lldlldata']).reshape(var_dict['lldlldata_shape'])
+    ll = lldlldata[0, order] # WAVEDATA_AIR_BARY
+    dll = lldlldata[1, order] # DLLDATA_AIR_BARY
+
+    y = flux * blaze / corr_model
     ye = error * blaze #/ corr_model[order]
 
     ccf, ccfe, ccfq = espdr_compute_CCF_fast(ll, dll, y, ye, blaze, quality, rvarray, mask,
@@ -434,7 +462,7 @@ def calculate_s2d_ccf_parallel(s2dfile, rvarray, mask, mask_width=0.5, order='al
     # dllfile = hdu[0].header['HIERARCH ESO PRO REC1 CAL8 NAME']
     # dllfile = find_file(dllfile, ssh)
     # dll = fits.open(dllfile)[1].data #.astype(np.float64)
-    dll = hdu[7].data
+    # dll = hdu[7].data
 
     if do_flux_corr:
         # get the flux correction stored in the S2D file
@@ -464,28 +492,60 @@ def calculate_s2d_ccf_parallel(s2dfile, rvarray, mask, mask_width=0.5, order='al
 
 
     kwargs = {}
-    kwargs['data'] = [None] + [hdu[i].data for i in range(1, 6)]
-    kwargs['dll'] = dll
-    kwargs['blaze'] = blaze
-    kwargs['corr_model'] = corr_model
-    kwargs['rvarray'] = rvarray
-    kwargs['mask'] = mask
-    kwargs['BERV'] = BERV
-    kwargs['BERVMAX'] = BERVMAX
-    kwargs['mask_width'] = mask_width
-    # kwargs['verbose'] = verbose
+    # kwargs['data'] = [hdu[i].data[:, pixels] for i in range(5, 8)]
+
+    blaze_shared = multiprocessing.RawArray('d', int(np.prod(blaze.shape)))
+    blaze_shape = blaze.shape
+    blaze_temp = np.frombuffer(blaze_shared).reshape(blaze_shape) # temporary numpy array
+    np.copyto(blaze_temp, blaze) # copy data to shared array
+
+    corr_model_shared = multiprocessing.RawArray('d', int(np.prod(corr_model.shape)))
+    corr_model_shape = corr_model.shape
+    corr_model_temp = np.frombuffer(corr_model_shared).reshape(corr_model_shape) # temporary numpy array
+    np.copyto(corr_model_temp, corr_model) # copy data to shared array
+
+    rvarray_shared = multiprocessing.RawArray('d', rvarray.shape[0])
+    rvarray_shape = rvarray.shape
+    rvarray_temp = np.frombuffer(rvarray_shared).reshape(rvarray_shape) # temporary numpy array
+    np.copyto(rvarray_temp, rvarray) # copy data to shared array
+
+    # the different HDUs have different types (float32, uint16, float64)
+
+    scierrdata_shared = multiprocessing.RawArray('f', 2 * int(np.prod(hdu[1].data.shape)))
+    scierrdata_shape = (2, *hdu[1].data.shape)
+    scierrdata_temp = np.frombuffer(scierrdata_shared, dtype=np.float32).reshape(scierrdata_shape) # temporary numpy array
+    np.copyto(scierrdata_temp, np.stack([hdu[1].data, hdu[2].data])) # copy data to shared array
+
+    qualdata_shared = multiprocessing.RawArray('H', int(np.prod(hdu[3].data.shape)))
+    qualdata_shape = hdu[3].data.shape
+    qualdata_temp = np.frombuffer(qualdata_shared, dtype=np.uint16).reshape(qualdata_shape) # temporary numpy array
+    np.copyto(qualdata_temp, hdu[3].data) # copy data to shared array
+
+    lldlldata_shared = multiprocessing.RawArray('d', 2 * int(np.prod(hdu[1].data.shape)))
+    lldlldata_shape = (2, *hdu[1].data.shape)
+    lldlldata_temp = np.frombuffer(lldlldata_shared).reshape(lldlldata_shape) # temporary numpy array
+    np.copyto(lldlldata_temp, np.stack([hdu[5].data, hdu[7].data])) # copy data to shared array
 
     if verbose:
         print('Calculating...', end=' ', flush=True)
 
     start = pytime.time()
 
-    pool = multiprocessing.Pool(ncores)
+    pool = multiprocessing.Pool(
+        processes=ncores,
+        initializer=init_worker,
+        initargs=(rvarray_shared, rvarray_shape,
+                  blaze_shared, blaze_shape,
+                  corr_model_shared, corr_model_shape,
+                  scierrdata_shared, scierrdata_shape,
+                  qualdata_shared, qualdata_shape,
+                  lldlldata_shared, lldlldata_shape,
+                  BERV, BERVMAX, mask, mask_width, ),
+    )
 
     ## progress bar
     ccfs, ccfes, ccfqs = zip(
-        *tqdm(pool.imap(_dowork, product(orders, [kwargs, ])),
-              total=len(orders))
+        *tqdm(pool.imap(_dowork, orders), total=len(orders))
     )
     ## no progress bar
     # ccfs, ccfes, ccfqs = zip(*pool.map(_dowork, product(orders, [kwargs, ])))
