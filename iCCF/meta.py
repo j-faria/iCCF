@@ -621,7 +621,9 @@ def calculate_s1d_ccf_parallel(s1dfile, rvarray, mask_file='ESPRESSO_G2.fits',
 
 
 
-def calculate_ccf(filename, mask=None, rvarray=None, **kwargs):
+def calculate_ccf(filename, mask=None, rvarray=None, clobber=True,
+                  add_order_by_order_info=True, keep_prefix=False,
+                  verbose=True, **kwargs):
     """
     Calculate the CCF for an S2D file and save the result to a fits file.
 
@@ -638,6 +640,8 @@ def calculate_ccf(filename, mask=None, rvarray=None, **kwargs):
             it from the S2D file
         clobber (bool, default True):
             Whether to replace output CCF file even if it exists.
+        add_order_by_order_info (bool, default True):
+            If True, add order-by-order RV and FWHM to the output CCF file.
         keep_prefix (bool, default False):
             If True and `filename` has a directory prefix, the output CCF file
             will be saved in that same directory. Otherwise, it will be saved in
@@ -679,7 +683,6 @@ def calculate_ccf(filename, mask=None, rvarray=None, **kwargs):
     kwargs['mask'] = mask
 
     output = kwargs.pop('output', None)
-    keep_prefix = kwargs.pop('keep_prefix', False)
 
     if output:
         ccf_file = output
@@ -691,9 +694,8 @@ def calculate_ccf(filename, mask=None, rvarray=None, **kwargs):
         else:
             ccf_file = os.path.splitext(file)[0] + end
 
-    clobber = kwargs.pop('clobber', True)
     if os.path.exists(ccf_file) and not clobber:
-        if kwargs.get('verbose', True):
+        if verbose:
             print(f'Output CCF file exists: {ccf_file}')
         return ccf_file
 
@@ -717,6 +719,8 @@ def calculate_ccf(filename, mask=None, rvarray=None, **kwargs):
     #     ccf, ccfe, ccfq, kw = calculate_s1d_ccf_parallel(
     #         filename, rvarray, full_output=True, **kwargs)
     # else:
+
+    kwargs['verbose'] = verbose
 
     order = kwargs.pop('order', 'all')
     order = kwargs.pop('orders', order)
@@ -770,15 +774,22 @@ def calculate_ccf(filename, mask=None, rvarray=None, **kwargs):
     hdr3['EXTNAME'] = 'QUALDATA'
     hdu3 = fits.ImageHDU(ccfq, header=hdr3)
 
-
     hdul = fits.HDUList([phdu, hdu1, hdu2, hdu3])
-    
+    Ind.HDU = hdul
+    Ind._SCIDATA = ccf
+    Ind._ERRDATA = ccfe
+    Ind._QUALDATA = ccfq
+
+    if add_order_by_order_info:
+        from .iCCF import add_order_by_order_info
+        Ind = add_order_by_order_info(Ind)
+
     if kwargs.get('verbose', True):
         print('Output to:', ccf_file)
     
     with warnings.catch_warnings():
         warnings.simplefilter('ignore', AstropyWarning)
-        hdul.writeto(ccf_file, overwrite=True, checksum=True)
+        Ind.HDU.writeto(ccf_file, overwrite=True, checksum=True)
 
     return ccf_file
 

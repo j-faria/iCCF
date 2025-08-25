@@ -1,19 +1,13 @@
+from __future__ import annotations
 from collections.abc import Iterable
-from functools import lru_cache
 import os
-import sys
 
-import numpy as np
-import matplotlib.pyplot as plt
 from os.path import basename
 from glob import glob
-import math
 import warnings
 
-try:
-    from tqdm import tqdm
-except ImportError:
-    tqdm = lambda x: x
+import numpy as np
+from tqdm import tqdm
 
 from .gaussian import gauss, gaussfit, FWHM as FWHMcalc, RV, RVerror, contrast
 from .bisector import BIS, BIS_HARPS as BIS_HARPS_calc, BIS_ESP as BIS_ESP_calc
@@ -21,7 +15,7 @@ from .vspan import vspan
 from .wspan import wspan
 from .keywords import (getRVerror, getBJD, getRVarray, getINSTRUMENT)
 from . import writers
-from .utils import no_stack_warning, one_line_warning
+from .utils import one_line_warning
 
 
 def rdb_names(names):
@@ -48,6 +42,8 @@ class Indicators:
     """ Class to hold CCFs and CCF indicators """
     _warnings = True
 
+    filename: str | None = None
+
     def __init__(self, rv, ccf, eccf=None, RV_on=True, FWHM_on=True,
                  BIS_on=True, Vspan_on=True, Wspan_on=True, contrast_on=True,
                  BIS_HARPS=False):
@@ -55,23 +51,27 @@ class Indicators:
         The default constructor takes `rv` and `ccf` arrays as input. See
         `Indicators.from_file` for another way to create the object from a CCF
         fits file. The CCF uncertainties can be provided as the `eccf` array.
-        Keyword parameters turn specific indicators on or off. Is `BIS_HARPS` 
-        is True, the BIS is calculated using the same routine as in the HARPS 
+        Keyword parameters turn specific indicators on or off. Is `BIS_HARPS` is
+        True, the BIS is calculated using the same routine as in the HARPS
         pipeline.
         """
         self.rv = rv
         self.ccf = ccf
         self.eccf = eccf
-        self.filename = None
         self.on_indicators = []
         if RV_on:
             self.on_indicators.append('RV')
             self.on_indicators.append('RVerror')
-        if FWHM_on: self.on_indicators.append('FWHM')
-        if contrast_on: self.on_indicators.append('contrast')
-        if BIS_on: self.on_indicators.append('BIS')
-        if Vspan_on: self.on_indicators.append('Vspan')
-        if Wspan_on: self.on_indicators.append('Wspan')
+        if FWHM_on:
+            self.on_indicators.append('FWHM')
+        if contrast_on:
+            self.on_indicators.append('contrast')
+        if BIS_on:
+            self.on_indicators.append('BIS')
+        if Vspan_on:
+            self.on_indicators.append('Vspan')
+        if Wspan_on:
+            self.on_indicators.append('Wspan')
         self.on_indicators_rdb = rdb_names(self.on_indicators)
 
         # the ESPRESSO pipeline does not consider the errors when fitting the
@@ -117,10 +117,10 @@ class Indicators:
         hdu_number : int, default = 1
             The index of the HDU list which contains the CCF
         data_index : int, default = -1
-            The index of the .data array which contains the CCF. The data will 
+            The index of the .data array which contains the CCF. The data will
             be accessed as ccf = HDU[hdu_number].data[data_index,:]
         sort_bjd : bool (default True)
-            If True and filename is a list of files, sort them by BJD before 
+            If True and filename is a list of files, sort them by BJD before
             reading
         """
         verbose = kwargs.pop('verbose', False)
@@ -173,7 +173,7 @@ class Indicators:
                 eccf = None
                 warnings.warn('no CCF errors found')
 
-            I = cls(rv, ccf, eccf=eccf, **kwargs)
+            I = cls(rv, ccf, eccf=eccf, **kwargs)  # noqa: E741
 
             # save attributes
             I.filename = file
@@ -228,7 +228,7 @@ class Indicators:
         if self._guess_rv is None:
             self._guess_rv = self.pipeline_RV
         return self._guess_rv
-    
+
     @guess_rv.setter
     def guess_rv(self, value):
         self._guess_rv = value
@@ -433,9 +433,7 @@ class Indicators:
 
     @property
     def pipeline_RVerror(self):
-        """ 
-        The RV error as derived by the pipeline, from the header.
-        """
+        """  The RV error as derived by the pipeline, from the header."""
         self._check_for_HDU()
         return getRVerror(None, hdul=self.HDU)
 
@@ -446,8 +444,9 @@ class Indicators:
 
         Args:
             orders (slice, int, tuple, list, array): 
-                List of orders for which to sum the CCFs. If None, use all orders. 
-                If an int, return directly the CCF of that order (1-based).
+                List of orders for which to sum the CCFs. If None, use all
+                orders. If an int, return directly the CCF of that order
+                (1-based).
         """
         if orders is None:
             return self.ccf
@@ -535,10 +534,12 @@ class Indicators:
     def plot(self, ax=None, show_fit=True, show_bisector=False,
              show_residuals=False, over=0):
         """ Plot the CCF, together with the Gaussian fit and the bisector """
+        import matplotlib.pyplot as plt
+
         if ax is None:
             _, ax = plt.subplots(constrained_layout=True)
 
-        label = os.path.basename(self.filename)
+        label = basename(self.filename)
         label = label.replace('%3A', ':')
         eccf = self.eccf if self._use_errors else None
 
@@ -584,6 +585,8 @@ class Indicators:
 
     def plot_individual_CCFs(self, ax=None, show_errors=True, show_fit=False, **kwargs):
         """ Plot the CCFs for individual orders """
+        import matplotlib.pyplot as plt
+
         if ax is None:
             _, (ax, ax2) = plt.subplots(1, 2, figsize=(8, 4), width_ratios=[4, 1.5], constrained_layout=True)
         else:
@@ -615,6 +618,8 @@ class Indicators:
 
     def plot_individual_RV(self, ax=None, relative=False, **kwargs):
         """ Plot the RV for individual orders """
+        import matplotlib.pyplot as plt
+
         if ax is None:
             _, ax = plt.subplots(constrained_layout=True)
 
@@ -660,7 +665,7 @@ def indicators_from_files(files, rdb_format=True, show=True, show_bjd=True,
         if show_bjd:
             bjd = getBJD(f)
 
-        I = Indicators.from_file(f, **kwargs)
+        I = Indicators.from_file(f, **kwargs)  # noqa: E741
         if j == 0 and show:
             if rdb_format:
                 lst = (['jdb'] + I.on_indicators_rdb) if show_bjd \
@@ -680,32 +685,44 @@ def indicators_from_files(files, rdb_format=True, show=True, show_bjd=True,
             print((bjd, ) + I.all)
 
 
-def recreate_ccf_file(file, overwrite=False):
+def add_order_by_order_info(Ind: Indicators):
+    """
+    Adds order-by-order RV and FWHM to the HDU of the indicators object `I`.
+    """
     from astropy.io import fits
-    I = Indicators.from_file(file, keep_open=True)
-    I._warnings = False
+    Ind._warnings = False
+    
+    col1 = fits.Column(name='order', array=np.arange(1, Ind.norders + 1), format='I')
+
+    # is SCIDATA a float32? (ignore endianness)
+    if Ind._SCIDATA.dtype.str[1:] == np.float32().dtype.str[1:]:
+        format = 'E'
+    else:
+        format = 'D'
+
+    col2 = fits.Column(name='CCF RV', array=Ind.individual_RV, format=format)
+    col3 = fits.Column(name='CCF RV ERROR', array=Ind.individual_RVerror, format=format)
+    col4 = fits.Column(name='CCF FWHM', array=Ind.individual_FWHM, format=format)
+    col5 = fits.Column(name='CCF FWHM ERROR', array=Ind.individual_FWHMerror, format=format)
+
+    new_hdu = fits.BinTableHDU.from_columns([col1, col2, col3, col4, col5])
+    new_hdu.name = 'ORDERRV'
+    Ind.HDU.append(new_hdu)
+
+    return Ind
+
+
+def recreate_ccf_file(file, overwrite=False):
+    Ind = Indicators.from_file(file, keep_open=True)
+    assert isinstance(Ind, Indicators)
     
     new_file = file.replace('.fits', '.iccf.fits')
     if os.path.exists(new_file) and not overwrite:
         print(f'output file ({new_file}) already exists, not overwriting')
-        sys.exit(1)
+        return
 
     print(f'Adding order-by-order RV and FWHM to {file}')
-
-    col1 = fits.Column(name='order', format='I', array=np.arange(1, I.norders + 1))
-    
-    # is SCIDATA a float32? (ignore endianness)
-    if I._SCIDATA.dtype.str[1:] == np.float32().dtype.str[1:]:
-        format = 'E'
-    else:
-        format = 'D'
-    col2 = fits.Column(name='CCF RV', array=I.individual_RV, format=format)
-    col3 = fits.Column(name='CCF RV ERROR', array=I.individual_RVerror, format=format)
-    col4 = fits.Column(name='CCF FWHM', array=I.individual_FWHM, format=format)
-    col5 = fits.Column(name='CCF FWHM ERROR', array=I.individual_FWHMerror, format=format)
-    new_hdu = fits.BinTableHDU.from_columns([col1, col2, col3, col4, col5])
-    new_hdu.name = 'ORDERRV'
-    I.HDU.append(new_hdu)
+    Ind = add_order_by_order_info(Ind)
 
     # order_by_order_values = (
     #     I.individual_RV, I.individual_RVerror,
@@ -724,9 +741,9 @@ def recreate_ccf_file(file, overwrite=False):
     #     ):
     #         I.HDU[0].header[k] = v
 
-    I.HDU.writeto(new_file, output_verify='exception', checksum=True,
+    Ind.HDU.writeto(new_file, output_verify='exception', checksum=True,
                   overwrite=overwrite)
-    I.HDU.close()
+    Ind.HDU.close()
 
     print('Wrote', new_file)
     return new_file
