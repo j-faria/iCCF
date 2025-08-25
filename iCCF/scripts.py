@@ -60,8 +60,8 @@ def fits_to_rdb():
 
 
 desc_iccf_make_ccf = \
-"""This script takes a list of S2D fits files and calculates the CCF for a 
-given RV array and a given mask. If no mask is provided, it uses the same as
+"""This script takes a list of S2D fits files and calculates the CCF for a
+given RV array and a given mask. If these are not provided, it uses the same as
 specified in the S2D file."""
 
 def _parse_args_make_CCF():
@@ -223,14 +223,18 @@ def check_CCF(file1=None, file2=None, compact=False, plot=False):
         print_difference_caret(i1.RV, i2.RV, space='')
         return
 
-    print('Absolute differences:')
-    a = i1._SCIDATA - i2._SCIDATA
-    print(f'CCF1 - CCF2       : max={np.nanmax(a):.2e}, mean={np.nanmean(a):.2e}')
-    print('Relative differences:')
-    with np.errstate(invalid='ignore', divide='ignore'):
-        r = a / i1._SCIDATA
-    print(f'(CCF1 - CCF2)/CCF1: max={np.nanmax(r):.2e}, mean={np.nanmean(r):.2e}')
-    print()
+    try:
+        print('Absolute differences:')
+        a = i1._SCIDATA - i2._SCIDATA
+        print(f'CCF1 - CCF2       : max={np.nanmax(a):.2e}, mean={np.nanmean(a):.2e}')
+        print('Relative differences:')
+        with np.errstate(invalid='ignore', divide='ignore'):
+            r = a / i1._SCIDATA
+        print(f'(CCF1 - CCF2)/CCF1: max={np.nanmax(r):.2e}, mean={np.nanmean(r):.2e}')
+        print()
+    except ValueError:
+        print('Could not compare CCFs')
+
     print()
     print('  RV:', i1.RV, '(pipe RV=', i1.pipeline_RV, ')')
     print('    :', i2.RV)
