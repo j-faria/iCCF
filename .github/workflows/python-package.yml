@@ -25,7 +25,7 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install -U pip
-        python -m pip install flake8 pytest
+        python -m pip install flake8 pytest setuptools_scm
 
     - name: Lint with flake8
       run: |
@@ -41,6 +41,7 @@ jobs:
     - name: Check version
       run: |
         python -c "import iCCF; print(iCCF.__version__)"
+        python -m setuptools_scm
 
     - name: Test with pytest
       run: |
