@@ -1,6 +1,7 @@
 from collections.abc import Iterable
 from functools import lru_cache
 import os
+import sys
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -679,30 +680,55 @@ def indicators_from_files(files, rdb_format=True, show=True, show_bjd=True,
             print((bjd, ) + I.all)
 
 
-def recreate_ccf_file(file, overwrite=False, add_comments=True):
+def recreate_ccf_file(file, overwrite=False):
+    from astropy.io import fits
     I = Indicators.from_file(file, keep_open=True)
+    I._warnings = False
+    
     new_file = file.replace('.fits', '.iccf.fits')
+    if os.path.exists(new_file) and not overwrite:
+        print(f'output file ({new_file}) already exists, not overwriting')
+        sys.exit(1)
 
-    order_by_order_values = (
-        I.individual_RV, I.individual_RVerror,
-        I.individual_FWHM, I.individual_FWHMerror
-    )
-    for i, (rv, erv, fwhm, efwhm) in enumerate(zip(*order_by_order_values)):
-        if np.isnan(rv) or np.isnan(erv):
-            rv, erv = 'NaN', 'NaN'
-            fwhm, efwhm = 'NaN', 'NaN'
+    print(f'Adding order-by-order RV and FWHM to {file}')
 
-        for k, v in (
-            (f'HIERARCH ICCF ORDER{i+1} CCF RV',         (rv,    f'Radial velocity of order {i+1} [km/s]')                if add_comments else rv   ),
-            (f'HIERARCH ICCF ORDER{i+1} CCF RV ERROR',   (erv,   f'Uncertainty on radial velocity of order {i+1} [km/s]') if add_comments else erv  ),
-            (f'HIERARCH ICCF ORDER{i+1} CCF FWHM',       (fwhm,  f'CCF FWHM of order {i+1} [km/s]')                       if add_comments else fwhm ),
-            (f'HIERARCH ICCF ORDER{i+1} CCF FWHM ERROR', (efwhm, f'Uncertainty on CCF FWHM of order {i+1} [km/s]')        if add_comments else efwhm),
-        ):
-            I.HDU[0].header[k] = v
+    col1 = fits.Column(name='order', format='I', array=np.arange(1, I.norders + 1))
+    
+    # is SCIDATA a float32? (ignore endianness)
+    if I._SCIDATA.dtype.str[1:] == np.float32().dtype.str[1:]:
+        format = 'E'
+    else:
+        format = 'D'
+    col2 = fits.Column(name='CCF RV', array=I.individual_RV, format=format)
+    col3 = fits.Column(name='CCF RV ERROR', array=I.individual_RVerror, format=format)
+    col4 = fits.Column(name='CCF FWHM', array=I.individual_FWHM, format=format)
+    col5 = fits.Column(name='CCF FWHM ERROR', array=I.individual_FWHMerror, format=format)
+    new_hdu = fits.BinTableHDU.from_columns([col1, col2, col3, col4, col5])
+    new_hdu.name = 'ORDERRV'
+    I.HDU.append(new_hdu)
+
+    # order_by_order_values = (
+    #     I.individual_RV, I.individual_RVerror,
+    #     I.individual_FWHM, I.individual_FWHMerror
+    # )
+    # for i, (rv, erv, fwhm, efwhm) in enumerate(zip(*order_by_order_values)):
+    #     if np.isnan(rv) or np.isnan(erv):
+    #         rv, erv = 'NaN', 'NaN'
+    #         fwhm, efwhm = 'NaN', 'NaN'
+
+    #     for k, v in (
+    #         (f'HIERARCH ICCF ORDER{i+1} CCF RV',         (rv,    f'Radial velocity of order {i+1} [km/s]')                if add_comments else rv   ),
+    #         (f'HIERARCH ICCF ORDER{i+1} CCF RV ERROR',   (erv,   f'Uncertainty on radial velocity of order {i+1} [km/s]') if add_comments else erv  ),
+    #         (f'HIERARCH ICCF ORDER{i+1} CCF FWHM',       (fwhm,  f'CCF FWHM of order {i+1} [km/s]')                       if add_comments else fwhm ),
+    #         (f'HIERARCH ICCF ORDER{i+1} CCF FWHM ERROR', (efwhm, f'Uncertainty on CCF FWHM of order {i+1} [km/s]')        if add_comments else efwhm),
+    #     ):
+    #         I.HDU[0].header[k] = v
 
     I.HDU.writeto(new_file, output_verify='exception', checksum=True,
                   overwrite=overwrite)
+    I.HDU.close()
 
+    print('Wrote', new_file)
     return new_file
 
 
