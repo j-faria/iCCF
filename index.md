@@ -47,7 +47,7 @@ pip install -e .
 ```
 
 If you experience any problems during installation,
-[open an issue](https://github.com/j-faria/iCCF/issues) on GitHub.
+[open an issue](https://github.com/j-faria/iCCF/issues){:target="_blank"} on GitHub.
 
 
 ## Getting started
@@ -102,19 +102,19 @@ are based on the works of others.
 Please cite the appropriate papers from the following list
 if you use this package.
 
-  - [Queloz et al 2001](https://doi.org/10.1051/0004-6361:20011308)
-  - [Nardetto et al 2006](https://doi.org/10.1051/0004-6361:20054333)
-  - [Boisse et al 2011](https://doi.org/10.1051/0004-6361/201014354)
-  - [Figueira et al 2013](https://www.aanda.org/articles/aa/abs/2013/09/aa20779-12/aa20779-12.html)
-  - [Santerne et al 2015](https://doi.org/10.1093/mnras/stv1080)
-  - [Lanza et al 2018](https://doi.org/10.1051/0004-6361/201731010)
+  - [Queloz et al 2001](https://doi.org/10.1051/0004-6361:20011308){:target="_blank"}
+  - [Nardetto et al 2006](https://doi.org/10.1051/0004-6361:20054333){:target="_blank"}
+  - [Boisse et al 2011](https://doi.org/10.1051/0004-6361/201014354){:target="_blank"}
+  - [Figueira et al 2013](https://www.aanda.org/articles/aa/abs/2013/09/aa20779-12/aa20779-12.html){:target="_blank"}
+  - [Santerne et al 2015](https://doi.org/10.1093/mnras/stv1080){:target="_blank"}
+  - [Lanza et al 2018](https://doi.org/10.1051/0004-6361/201731010){:target="_blank"}
   
 
 ## See also
 
 - Similar codes were developed by Figueira et al. A&A 557, A93 (2013)  
-  with a Python package available [here](https://bitbucket.org/pedrofigueira/line-profile-indicators/src/master/)
+  with a Python package available [here](https://bitbucket.org/pedrofigueira/line-profile-indicators/src/master/){:target="_blank"}
   (described in Appendix A of Santos et al. A&A 566, A35 (2014))
 
 - A similar package (in IDL) was developed by Lanza et al. A&A 616, A155 (2018).  
-  It is available [here](https://www.ict.inaf.it/gitlab/antonino.lanza/HARPSN_spectral_line_profile_indicators).
+  It is available [here](https://www.ict.inaf.it/gitlab/antonino.lanza/HARPSN_spectral_line_profile_indicators){:target="_blank"}.
