@@ -1,10 +1,15 @@
+[build-system]
+build-backend = "setuptools.build_meta"
+requires = ["setuptools", "wheel", "setuptools-scm"]
+
+
 [project]
 name = "iCCF"
-version = "0.4.1"
 description = "Analysis of CCF profiles and activity indicators"
 authors = [
     {name = "João Faria", email = "joao.faria@unige.ch"},
 ]
+dynamic = ["version"]
 
 dependencies = [
     "numpy",
@@ -40,7 +45,4 @@ packages = ['iCCF']
 iCCF = ['example_data/*.npy', 'data/*']
 
 
-[build-system]
-requires = ["setuptools", "wheel", "numpy"]
-build-backend = "setuptools.build_meta"
 

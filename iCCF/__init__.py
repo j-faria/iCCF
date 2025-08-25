@@ -3,7 +3,11 @@ Analysis tools for common line profile indicators measured from the
 cross-correlation function (CCF).
 """
 
-from .version import __version__
+from importlib.metadata import version, PackageNotFoundError
+try:
+    __version__ = version("iCCF")
+except PackageNotFoundError: # package is not installed
+    pass
 
 from .bisector import BIS, BISplus, BISminus, BIS_HARPS
 from .gaussian import gauss, gaussfit, RV, FWHM, contrast
