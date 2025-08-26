@@ -588,12 +588,17 @@ class Indicators:
         import matplotlib.pyplot as plt
 
         if ax is None:
-            _, (ax, ax2) = plt.subplots(1, 2, figsize=(8, 4), width_ratios=[4, 1.5], constrained_layout=True)
+            _, (ax, ax2) = plt.subplots(1, 2, figsize=(8, 4),
+                                        width_ratios=[4, 1.5],
+                                        constrained_layout=True)
         else:
             ax2 = None
 
         n = self.individual_RV.size
         x = self._get_x_for_plot_individual_CCFs()
+
+        show_errors = show_errors and self.eccf is not None
+
         for i in range(1, n + 1):
             if show_errors:
                 ax.errorbar(x[i-1], self._SCIDATA[i - 1], self._ERRDATA[i - 1], **kwargs)
@@ -613,6 +618,7 @@ class Indicators:
 
         if ax2:
             ax2.plot(self.rv, self.ccf, **kwargs)
+            ax2.set(xlabel='RV [km/s]', ylabel='CCF')
 
         return ax.figure, ax
 
