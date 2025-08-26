@@ -34,8 +34,14 @@ class Mask:
         else:
             self.mask_name = mask
             self.instrument = instrument or 'ESPRESSO'
-            mask_file = self._mask_file = f'{self.instrument}_{mask}.fits'
-            old_format = False
+            if self.instrument == 'CORALIE':
+                end = '.mas'
+                old_format = True
+            else:
+                end = '.fits'
+                old_format = False
+
+            mask_file = self._mask_file = f'{self.instrument}_{mask}{end}'
 
         if not os.path.exists(mask_file):
             try:
@@ -72,6 +78,7 @@ class Mask:
         av = find_data_file('NIRPS_*.fits')
         av += find_data_file('ESPRESSO_*.fits')
         av += find_data_file('HARPS_*.fits')
+        av += find_data_file('CORALIE_*.mas')
         return [path.stem for path in av]
 
     @property
