@@ -57,5 +57,10 @@ The **cross-correlation function (CCF)** is a mathematical tool used to measure 
 The cross-correlation function in the radial velocity method is essentially a sliding comparison between the observed stellar spectrum and a template spectrum, measuring how well they match at each Doppler shift. The velocity shift that maximizes the correlation corresponds to the star’s radial velocity at that observation.
 
 
+<br>
+
+Thanks ChatGPT!
+{: .text-right }
+
 
 <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@4/tex-mml-chtml.js"></script>

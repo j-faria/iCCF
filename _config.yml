@@ -5,6 +5,9 @@ theme: "just-the-docs"
 color_scheme: "light"
 search_enabled: true
 
+# # Set a path/url to a logo that will be displayed instead of the title
+# logo: "/assets/images/favicon.png"
+
 # Set a path/url to a favicon that will be displayed by the browser
 favicon_ico: "/assets/images/favicon.ico"
 
@@ -17,6 +20,16 @@ heading_anchors: true
 # For copy button on code
 enable_copy_code_button: true
 
+callouts:
+  warning:
+    title: Warning
+    color: red
+  note:
+    title: Note
+    color: blue
+  important:
+    title: Important
+    color: green
 
 # Footer content
 # appears at the bottom of every page's main content

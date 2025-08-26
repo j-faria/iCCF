@@ -5,13 +5,16 @@ has_children: false
 nav_order: 4
 ---
 
-**iCCF** provides a few command-line scripts to work with CCFs
+**iCCF** provides a few command-line scripts to work with CCFs.
 
-- `iccf-make-ccf`
+## `iccf-make-ccf`
 
 This script is very meta, because it creates CCFs themselves! Provided an S2D
-file with a stellar spectra, it will correlate it with a CCF mask to calculate
-the CCF. It uses code from the `iCCF.meta` and `iCCF.mask` modules.
+file with a stellar spectra (across the spatial and cross-dispersion
+dimensions), it will correlate it with a CCF mask to calculate the CCF.
+Currently, this works best for S2D files created with the official [ESPRESSO
+pipeline](https://www.eso.org/sci/software/pipelines/espresso/espresso-pipe-recipes.html),
+but the code could be general enough to work in other cases.
 
 ```
 usage: iccf-make-ccf [-h] [-o OUTPUT] [-m MASK] [-rv RV] [--rv-range RV_RANGE] 
@@ -32,5 +35,11 @@ options:
   -rv RV, --rv RV       RV array, in the form start:end:step [km/s]
   --rv-range RV_RANGE   Full RV range where to calculate CCF [km/s]
   --keep-prefix         Keep any prefix of the S2D file on the output file
-  --ncores NCORES       Number of cores to distribute calculation; default is all available (20)
+  --ncores NCORES       Number of cores to distribute calculation; default is all available
 ```
+
+
+{: .important }
+> A lot of effort has been put into making sure that the CCFs calculated by
+> **iCCF** are identical to those from the ESPRESSO pipeline! Indeed, the code
+> is based on the pipeline's implementation and follows exactly the same steps.

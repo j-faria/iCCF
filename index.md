@@ -11,6 +11,9 @@ nav_order: 1
 [![License: MIT](https://img.shields.io/badge/license-MIT-informational.svg)](https://opensource.org/licenses/MIT)
 [![PyPI version](https://badge.fury.io/py/iCCF.svg)](https://pypi.org/project/iCCF/)
 
+![logo](assets/images/logo.png)
+
+
 This package provides clear and well-documented implementations of common  
 line profile indicators measured from the cross-correlation function (CCF).  
 And many other utility functions to work with CCFs.
