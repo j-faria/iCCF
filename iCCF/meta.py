@@ -157,23 +157,6 @@ def setup_blaze(ignore_blaze, smart_blaze, s2dfile, hdu, ssh, verbose):
     if ignore_blaze:
         blaze = np.ones_like(hdu[1].data)
     else:
-        _, blazefile = find_blaze(None, hdu=hdu)
-        try:
-            blazefile = find_file(blazefile, ssh, verbose)
-        except FileNotFoundError:
-            for replacement in [(':', '_'), (':', '%3A')]:
-                try:
-                    blazefile = find_file(blazefile.replace(*replacement), ssh, verbose)
-                    break
-                except FileNotFoundError:
-                    pass
-            else:
-                if smart_blaze:
-                    if verbose:
-                        print('Could not find blaze file. Trying smart blaze')
-                else:
-                    raise FileNotFoundError(f'Could not find BLAZE file: {blazefile}') from None
-
         if smart_blaze:
             # assert 'S2D_A' in s2dfile, 'Not a de-blazed S2D file'
             s2d_blaze_file = s2dfile.replace('S2D_SKYSUB_A', 'S2D_A')
@@ -188,6 +171,19 @@ def setup_blaze(ignore_blaze, smart_blaze, s2dfile, hdu, ssh, verbose):
             else:
                 raise FileNotFoundError(f'Could not find file: {s2d_blaze_file}') from None
         else:
+            _, blazefile = find_blaze(None, hdu=hdu)
+            try:
+                blazefile = find_file(blazefile, ssh, verbose)
+            except FileNotFoundError:
+                for replacement in [(':', '_'), (':', '%3A')]:
+                    try:
+                        blazefile = find_file(blazefile.replace(*replacement), ssh, verbose)
+                        break
+                    except FileNotFoundError:
+                        pass
+                else:
+                    raise FileNotFoundError(f'Could not find BLAZE file: {blazefile}') from None
+
             with fits.open(blazefile) as hdu_blaze:
                 blaze = hdu_blaze[1].data
 
