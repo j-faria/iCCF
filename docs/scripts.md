@@ -39,7 +39,7 @@ options:
 ```
 
 
-{: .important }
-> A lot of effort has been put into making sure that the CCFs calculated by
-> **iCCF** are identical to those from the ESPRESSO pipeline! Indeed, the code
-> is based on the pipeline's implementation and follows exactly the same steps.
+!!! info "Note"
+    <br>A lot of effort has been put into making sure that the CCFs calculated by
+    **iCCF** are identical to those from the ESPRESSO pipeline! Indeed, the code
+    is based on the pipeline's implementation and follows exactly the same steps.

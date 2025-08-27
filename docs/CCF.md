@@ -1,8 +1,5 @@
 ---
-layout: default
 title: What is a CCF?
-has_children: false
-nav_order: 2
 ---
 
 Hey ChatGPT, what is the cross correlation function used  

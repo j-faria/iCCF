@@ -1,8 +1,5 @@
 ---
-layout: default
 title: Line profile indicators
-has_children: false
-nav_order: 3
 ---
 
 A picture is sometimes worth a thousand words, and this plot from [Santerne et
@@ -13,13 +10,6 @@ quite well some of the commonly used line-profile indicators.
 
 
 Currently, the following line profile indicators are implemented in **iCCF**
-
-<!-- <details open markdown="block"> -->
-  <!-- <summary></summary> -->
-  {: .text-delta }
-1. TOC
-{:toc}
-<!-- </details> -->
 
 
 ### FWHM
@@ -40,7 +30,7 @@ Suggested by [Boisse et al
 2011](https://doi.org/10.1051/0004-6361/201014354){:target="_blank"}, obtained
 from the RV difference measured by fitting two Gaussian functions to the top and
 to the bottom parts of the line profile. The limits between the top and the
-bottom of the line profile are defined as the $$\pm 1 \sigma$$ limit from the
+bottom of the line profile are defined as the $\pm 1 \sigma$ limit from the
 measured RV.
 
 ### BiGauss 😢

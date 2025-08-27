@@ -1,8 +1,5 @@
 ---
-layout: default
 title: Basic Usage
-has_children: false
-nav_order: 3
 ---
 
 Most often, you will want to create an `Indicators` object from a CCF file:
@@ -33,11 +30,11 @@ i.RVerror   # np.float32(0.0002788162)
 ```
 
 
-{: .note }
-> In this example, both the radial velocity and the uncertainty are 32-bit
-> floats. This is because the underlying CCF data was stored as 32-bit floats as
-> well. **iCCF** takes great care to preserve the numerical precision in all
-> calculations.
+!!! info "Note"
+    <br> In this example, both the radial velocity and the uncertainty are 32-bit
+    floats. This is because the underlying CCF data was stored as 32-bit floats as
+    well. **iCCF** takes great care to preserve the numerical precision in all
+    calculations.
 
 
 These values were calculated by fitting a Gaussian function to the CCF, in the
@@ -48,8 +45,8 @@ pipeline RV value that is stored in the header of the CCF file:
 i.pipeline_RV  # 40.2321199262624
 ```
 
-{: .note }
-> The pipeline value is stored in the header with full 64-bit precision!
+!!! info "Note"
+    <br> The pipeline value is stored in the header with full 64-bit precision!
 
 
 
@@ -66,8 +63,8 @@ i.plot_individual_RV()
 
 ![img](individual_RV.png)
 
-{: .note }
-> Some of the individual RVs are NaN because that order's CCF is equal to zero.
+!!! info "Note"
+    <br> Some of the individual RVs are NaN because that order's CCF is equal to zero.
 
 
 In fact, the order-by-order CCFs can also be visualised easily:
