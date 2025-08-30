@@ -718,14 +718,26 @@ def add_order_by_order_info(Ind: Indicators):
     return Ind
 
 
-def recreate_ccf_file(file, overwrite=False):
+def recreate_ccf_file(file, output=None, replace_rv=True, check=False,
+                      overwrite=False):
     Ind = Indicators.from_file(file, keep_open=True)
     assert isinstance(Ind, Indicators)
     
-    new_file = file.replace('.fits', '.iccf.fits')
+    new_file = output or file.replace('.fits', '.iccf.fits')
     if os.path.exists(new_file) and not overwrite:
         print(f'output file ({new_file}) already exists, not overwriting')
         return
+
+    if check:
+        Ind.check(verbose=True)
+
+    if replace_rv:
+        Ind.HDU[0].header['HIERARCH ESO QC CCF RV'] = Ind.RV
+        Ind.HDU[0].header['HIERARCH ESO QC CCF RV ERROR'] = Ind.RVerror
+        Ind.HDU[0].header['HIERARCH ESO QC CCF FWHM'] = Ind.FWHM
+        Ind.HDU[0].header['HIERARCH ESO QC CCF FWHM ERROR'] = Ind.FWHMerror
+        Ind.HDU[0].header['HIERARCH ESO QC CCF CONTRAST'] = Ind.contrast
+        Ind.HDU[0].header['HIERARCH ESO QC CCF CONTRAST ERROR'] = Ind.contrast_error
 
     print(f'Adding order-by-order RV and FWHM to {file}')
     Ind = add_order_by_order_info(Ind)
