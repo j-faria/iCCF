@@ -9,7 +9,6 @@ message: >-
 type: software
 authors:
   - given-names: João
-    name-particle: P.
     family-names: Faria
     email: joao.faria@unige.ch
     affiliation: University of Geneva
