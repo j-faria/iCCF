@@ -370,10 +370,11 @@ def _dowork(order):
     return ccf, ccfe, ccfq
 
 
-def calculate_s2d_ccf_parallel(s2dfile, rvarray, mask, mask_width=0.5, order='all',
-                               ncores=None, verbose=True, full_output=False,
-                               smart_blaze=True, ignore_blaze=False, do_flux_corr=False,
-                               ssh=None):
+def calculate_s2d_ccf_parallel(s2dfile, rvarray, mask, mask_width=0.5, 
+                               order='all', pixels=None, ncores=None,
+                               verbose=True, full_output=False, smart_blaze=True,
+                               ignore_blaze=False, do_flux_corr=False, ssh=None,
+                               flux_corr_params=None):
     """
     Calculate the CCF between a 2D spectra and a mask. This function can lookup
     necessary files (locally or over SSH) and can perform the calculation in
@@ -438,6 +439,10 @@ def calculate_s2d_ccf_parallel(s2dfile, rvarray, mask, mask_width=0.5, order='al
         if verbose:
             pass
 
+    if flux_corr_params is not None:
+        if not isinstance(flux_corr_params, dict):
+            raise ValueError('flux_corr_params should be a dictionary')
+
     BERV = hdu[0].header['HIERARCH ESO QC BERV']
     BERVMAX = hdu[0].header['HIERARCH ESO QC BERVMAX']
 
@@ -461,18 +466,38 @@ def calculate_s2d_ccf_parallel(s2dfile, rvarray, mask, mask_width=0.5, order='al
     # dll = hdu[7].data
 
     if do_flux_corr:
-        # get the flux correction stored in the S2D file
-        keyword = 'HIERARCH ESO QC ORDER%d FLUX CORR'
-        flux_corr = np.array([hdu[0].header[keyword % o] for o in range(1, norders + 1)])
-        # fit a polynomial and evaluate it at each order's wavelength
-        # orders with flux_corr = 1 are ignored in the polynomial fit
-        fit_nb = (flux_corr != 1.0).sum()
-        ignore = norders - fit_nb
-        # see espdr_science.c : espdr_correct_flux
-        poly_deg = round(8 * fit_nb / norders)
-        llc = hdu[5].data[:, order_len // 2]
-        coeff = np.polyfit(llc[ignore:], flux_corr[ignore:], poly_deg)
-        # corr_model = np.ones_like(hdu[5].data, dtype=np.float32)
+        if flux_corr_params is not None:
+            # user-provided flux_corr array
+            flux_corr = flux_corr_params['flux_corr']
+            if (flux_corr == 0.0).all():
+                raise ValueError('Flux correction is zero everywhere')
+            # user-provided polynomial degree or 8 by default
+            poly_deg = flux_corr_params.get('poly_deg', 8)
+            llc = hdu[5].data[:, order_len // 2]
+            use = ~np.isnan(flux_corr)
+            ignore = (~use).sum()
+            coeff = np.polyfit(llc[use], flux_corr[use], poly_deg)
+        else:
+            ## flux correction as in the pipeline
+
+            # get the flux correction stored in the S2D file
+            keyword = 'HIERARCH ESO QC ORDER%d FLUX CORR'
+            flux_corr = np.array([hdu[0].header[keyword % o] 
+                                  for o in range(1, norders + 1)])
+            if (flux_corr == 0.0).all():
+                raise ValueError('Flux correction is zero everywhere')
+
+            # fit a polynomial and evaluate it at each order's wavelength
+            # orders with flux_corr = 1 are ignored in the polynomial fit
+            fit_nb = (flux_corr != 1.0).sum()
+            ignore = norders - fit_nb
+    
+            # see espdr_science.c : espdr_correct_flux
+            poly_deg = round(8 * fit_nb / norders)
+
+            llc = hdu[5].data[:, order_len // 2]
+            coeff = np.polyfit(llc[ignore:], flux_corr[ignore:], poly_deg)
+
         corr_model = np.polyval(coeff, hdu[5].data)
         if verbose:
             print('Performing flux correction', end=' ')
