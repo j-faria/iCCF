@@ -45,7 +45,7 @@ class getKW:
                 return val, hdul
             else:
                 return val
-        obj = fitsfile or hdul
+        obj = fitsfile or hdul.filename()
         fail = ValueError(f'Could not find any {self.name} keyword in header of "{obj}"')
         raise fail
 
@@ -53,7 +53,8 @@ class getKW:
 getOBJECT = getKW('object', ['OBJECT', 'HIERARCH TNG OBS TARG NAME'])
 
 
-getRV = getKW('RV', ['HIERARCH ESO QC CCF RV', 'HIERARCH ESO DRS CCF RVC'])
+getRV = getKW('RV', ['HIERARCH ESO QC CCF RV', 'HIERARCH ESO DRS CCF RVC',
+                     'HIERARCH TNG QC CCF RV'])
 getRV.__doc__ = """
 Try to find the radial velocity in the header of `fitsfile`. If `keyword`
 is not provided, search for the following keywords
