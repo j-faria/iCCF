@@ -314,6 +314,24 @@ class Indicators:
         """ Wspan indicator [km/s], see Santerne et al. (2015, MNRAS 451, 3) """
         return wspan(self.rv, self.ccf)
 
+    @property
+    def DeltaV(self):
+        """
+        DeltaV indicator from a biGaussian fit [km/s]
+        see Figueira et al. (2013, A&A, 557, A93)
+        """
+        from .bigaussian import DeltaV
+
+        eccf = self.eccf if self._use_errors else None
+        return DeltaV(self.rv, self.ccf, eccf)
+
+    def ΔV(self):
+        """
+        ΔV indicator from a biGaussian fit [km/s]
+        see Figueira et al. (2013, A&A, 557, A93)
+        """
+        return self.DeltaV
+
     ############################################################################
     @property
     def contrast(self):
