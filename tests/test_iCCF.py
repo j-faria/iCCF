@@ -15,8 +15,18 @@ def indicator():
 
 def test_properties(indicator):
     i = indicator
+    assert i.bjd is None
     i.RV
+    i.RVerror
     i.FWHM
+
+def test_other_indicators(indicator):
+    i = indicator
+    i.BIS, i.BISerror
+    i.Vspan
+    i.Wspan
+    i.DeltaV
+    i.contrast
 
 def test_read_spectral_format():
     from iCCF.chromatic import read_spectral_format
