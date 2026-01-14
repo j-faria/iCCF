@@ -33,11 +33,16 @@ to the bottom parts of the line profile. The limits between the top and the
 bottom of the line profile are defined as the $\pm 1 \sigma$ limit from the
 measured RV.
 
-### BiGauss 😢
+### $\Delta V$ (bi-Gaussian fit)
 
-```py
-raise NotImplementedError
-```
+This indicator was discussed in [Nardetto et al
+2006](https://doi.org/10.1051/0004-6361:20054333){:target="_blank"} and
+[Figueira et al
+2013](https://www.aanda.org/articles/aa/abs/2013/09/aa20779-12/aa20779-12.html){:target="_blank"}.
+It is the RV difference between a Gaussian and a bi-Gaussian fit to the CCF. The
+bi-Gaussian is an asymmetric Gaussian with two different widths around the
+center.
+
 
 ### Vasy 😢
 
