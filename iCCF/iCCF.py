@@ -210,7 +210,9 @@ class Indicators:
     @property
     # @lru_cache
     def bjd(self):
-        """ Barycentric Julian Day when the observation was made """
+        """Barycentric Julian Day when the observation was made"""
+        if self.filename is None:
+            return None
         return getBJD(self.filename, hdul=self.HDU, mjd=False)
 
     @property
@@ -258,7 +260,7 @@ class Indicators:
                 try:
                     rve = getRVerror(None, hdul=self.HDU)
                     return rve
-                except ValueError:
+                except (ValueError, AttributeError):
                     # warnings.warn('Cannot access CCF uncertainties, using 1.0')
                     eccf = np.ones_like(self.rv)
 
