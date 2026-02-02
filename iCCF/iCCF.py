@@ -39,14 +39,13 @@ def rdb_names(names):
 
 
 class Indicators:
-    """ Class to hold CCFs and CCF indicators """
+    """Class to hold CCFs and CCF indicators"""
     _warnings = True
-
     filename: str | None = None
 
-    def __init__(self, rv, ccf, eccf=None, RV_on=True, FWHM_on=True,
-                 BIS_on=True, Vspan_on=True, Wspan_on=True, contrast_on=True,
-                 BIS_HARPS=False):
+    def __init__(self, rv, ccf, eccf=None,
+                 RV_on=True, FWHM_on=True, BIS_on=True, Vspan_on=True, 
+                 Wspan_on=True, contrast_on=True, BIS_HARPS=False):
         """
         The default constructor takes `rv` and `ccf` arrays as input. See
         `Indicators.from_file` for another way to create the object from a CCF
