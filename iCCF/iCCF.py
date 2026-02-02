@@ -268,17 +268,16 @@ class Indicators:
     ############################################################################
     @property
     def FWHM(self):
-        """ The full width at half maximum of the CCF [km/s] """
+        """The full width at half maximum of the CCF [km/s]"""
         eccf = self.eccf if self._use_errors else None
         try:
-            return FWHMcalc(self.rv, self.ccf, eccf,
-                            guess_rv=self.pipeline_RV)
+            return FWHMcalc(self.rv, self.ccf, eccf, guess_rv=self.pipeline_RV)
         except ValueError:
             return FWHMcalc(self.rv, self.ccf, eccf)
 
     @property
     def FWHMerror(self):
-        """ Photon noise uncertainty on the FWHM of the CCF [km/s] """
+        """Photon noise uncertainty on the FWHM of the CCF [km/s]"""
         if self._warnings:
             warnings.formatwarning = one_line_warning
             warnings.warn('FWHMerror is currently just 2 x RVerror')
