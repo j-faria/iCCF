@@ -136,7 +136,8 @@ class Indicators:
             for f in tqdm(file):
                 try:
                     indicators.append(
-                        cls.from_file(f, hdu_number, data_index, sort_bjd, **kwargs))
+                        cls.from_file(f, hdu_number, data_index, sort_bjd, **kwargs)
+                    )
                 except Exception as e:
                     if verbose:
                         print(f'ERROR reading "{f}"')
