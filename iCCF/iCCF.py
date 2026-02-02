@@ -237,7 +237,7 @@ class Indicators:
     ############################################################################
     @property
     def RV(self):
-        """ Radial velocity, from a Gaussian fit to the CCF [km/s] """
+        """Radial velocity, from a Gaussian fit to the CCF [km/s]"""
         eccf = self.eccf if self._use_errors else None
         try:
             return RV(self.rv, self.ccf, eccf, guess_rv=self._guess_rv)
@@ -246,7 +246,7 @@ class Indicators:
 
     @property
     def RVerror(self):
-        """ Photon-noise uncertainty on the radial velocity [km/s] """
+        """Photon-noise uncertainty on the radial velocity [km/s]"""
         if self.eccf is not None:  # CCF uncertainties were provided
             if self.eccf.size != self.ccf.size:
                 raise ValueError('CCF and CCF errors not of the same size')
