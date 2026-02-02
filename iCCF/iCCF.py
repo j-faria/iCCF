@@ -202,7 +202,7 @@ class Indicators:
 
     @property
     def OBJECT(self):
-        """ OBJECT keyword in the header """
+        """OBJECT keyword in the header"""
         from .keywords import getOBJECT
         return getOBJECT(self.filename, hdul=self.HDU)
 
@@ -216,7 +216,7 @@ class Indicators:
 
     @property
     def mask(self):
-        """ Mask used for the CCF calculation """
+        """Mask used for the CCF calculation"""
         from .keywords import getMASK
         return getMASK(self.filename, hdul=self.HDU)
 
