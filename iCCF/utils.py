@@ -67,6 +67,25 @@ def natsort(s):
     ]
 
 
+def doppler_shift_ccf(radial_velocity, rv, ccf):
+    """ 
+    Doppler shift the CCF by `radial_velocity`, using linear interpolation.
+
+    Args:
+        radial_velocity (float):
+            Radial velocity by which to shift the CCF. Same units as `rv`.
+        rv (ndarray):
+            The velocity values where the CCF is defined.
+        ccf (ndarray):
+            The values of the CCF profile.
+
+    Returns:
+        tuple (ndarray, ndarray):
+            Original velocity values and shifted CCF profile
+    """
+    return rv, np.interp(rv + radial_velocity, rv, ccf)
+
+
 def doppler_shift_wave(wave, rv, f=1.0):
     """ 
     Doppler shift the wavelength array `wave` by the radial velocity `rv` [km/s].
