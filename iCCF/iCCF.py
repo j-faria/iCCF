@@ -286,7 +286,7 @@ class Indicators:
     ############################################################################
     @property
     def BIS(self):
-        """ Bisector span [km/s] """
+        """Bisector span [km/s]"""
         # if self._warnings:
         #     warnings.formatwarning = one_line_warning
         #     warnings.warn('BIS currently does NOT match the ESPRESSO pipeline')
@@ -297,7 +297,7 @@ class Indicators:
 
     @property
     def BISerror(self):
-        """ Photon noise uncertainty on the BIS of the CCF [km/s] """
+        """Photon noise uncertainty on the BIS of the CCF [km/s]"""
         if self._warnings:
             warnings.formatwarning = one_line_warning
             warnings.warn('BISerror is currently just 2 x RVerror')
@@ -306,7 +306,7 @@ class Indicators:
     ############################################################################
     @property
     def Vspan(self):
-        """ Vspan indicator [km/s], see Boisse et al. (2011b, A&A 528 A4) """
+        """Vspan indicator [km/s], see Boisse et al. (2011b, A&A 528 A4)"""
         return vspan(self.rv, self.ccf)
 
     @property
@@ -335,13 +335,13 @@ class Indicators:
     ############################################################################
     @property
     def contrast(self):
-        """ The contrast (depth) of the CCF, measured in percentage """
+        """The contrast (depth) of the CCF, measured in percentage"""
         eccf = self.eccf if self._use_errors else None
         return contrast(self.rv, self.ccf, eccf)
 
     @property
     def contrast_error(self):
-        """ Uncertainty on the contrast (depth) of the CCF, measured in percentage """
+        """Uncertainty on the contrast (depth) of the CCF, measured in percentage"""
         return contrast(self.rv, self.ccf, self.eccf, error=True)
 
     ############################################################################
@@ -370,22 +370,22 @@ class Indicators:
 
     @property
     def individual_RV(self):
-        """ Individual radial velocities for each spectral order [km/s] """
+        """Individual radial velocities for each spectral order [km/s]"""
         return self.individual_value(RV)
 
     @property
     def individual_RVerror(self):
-        """ Individual radial velocity errors for each spectral order [km/s] """
+        """Individual radial velocity errors for each spectral order [km/s]"""
         return self.individual_value(RVerror, needs_errors=True)
 
     @property
     def individual_FWHM(self):
-        """ Individual FWHM for each spectral order [km/s] """
+        """Individual FWHM for each spectral order [km/s]"""
         return self.individual_value(FWHMcalc)
 
     @property
     def individual_FWHMerror(self):
-        """ Individual FWHM errors for each spectral order [km/s] """
+        """Individual FWHM errors for each spectral order [km/s]"""
         if self._warnings:
             warnings.formatwarning = one_line_warning
             warnings.warn('FWHMerror is currently just 2 x RVerror')
@@ -393,12 +393,12 @@ class Indicators:
 
     @property
     def individual_contrast(self):
-        """ The contrast (depth) of the CCF for each spectral order [%] """
+        """The contrast (depth) of the CCF for each spectral order [%]"""
         return self.individual_value(contrast)
 
     @property
     def individual_contrast_error(self):
-        """ Uncertainty on the contrast (depth) of the CCF for each spectral order [%] """
+        """Uncertainty on the contrast (depth) of the CCF for each spectral order [%]"""
         return self.individual_value(contrast, needs_errors=True, error=True)
 
     ############################################################################
@@ -406,7 +406,7 @@ class Indicators:
 
     @property
     def all(self):
-        """ All the indicators that are on """
+        """All the indicators that are on"""
         return tuple(self.__getattribute__(i) for i in self.on_indicators)
 
     def _check_for_HDU(self):
