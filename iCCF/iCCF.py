@@ -194,8 +194,7 @@ class Indicators:
             return I
 
         else:
-            raise ValueError(
-                'Input to `from_file` should be a string or list of strings.')
+            raise ValueError('Input to `from_file` should be a string or list of strings.')
 
     @property
     def norders(self):
