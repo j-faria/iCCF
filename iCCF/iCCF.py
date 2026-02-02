@@ -528,10 +528,9 @@ class Indicators:
         for q, (val1, val2) in Q.items():
             if verbose:
                 print(f'comparing {q:8s}: calculated/pipeline:', end=' ')
-                mag1 = max(0, int(np.log10(val1)))
-                mag2 = max(0, int(np.log10(val2)))
-                print(f'{val1:.{digits - mag1}f} / {val2:.{digits - mag2}f}',
-                      end=' ')
+                mag1 = max(0, int(np.log10(np.abs(val1))))
+                mag2 = max(0, int(np.log10(np.abs(val2))))
+                print(f'{val1:.{digits - mag1}f} / {val2:.{digits - mag2}f}', end=' ')
             if np.allclose(val1, val2, rtol=0.0, atol=self._eps):
                 if verbose:
                     print("✓")
