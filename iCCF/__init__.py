@@ -2,7 +2,7 @@
 Analysis tools for common line profile indicators measured from the
 cross-correlation function (CCF).
 """
-__all__ = ['Indicators', 'gauss']
+__all__ = ['Indicators', 'gauss', 'gaussfit']
 
 from importlib.metadata import version, PackageNotFoundError
 try:
