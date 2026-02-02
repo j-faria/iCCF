@@ -20,6 +20,10 @@ def _try_keywords(hdul, *keywords, exception=None):
     return None
 
 
+def getTEL(filename, hdul=None):
+    hdul = _check_hdul(hdul, filename)
+    return hdul[0].header['TELESCOP'][:3]
+
 class getKW:
     __call_doc__ = """
     Args:
