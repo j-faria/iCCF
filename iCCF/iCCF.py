@@ -571,6 +571,23 @@ class Indicators:
     def to_rdb(self, filename='stdout', clobber=False):
         return writers.to_rdb(self, filename, clobber)
 
+    def _vv(self, n=1000, over=0):
+        return np.linspace(
+            self.rv.min() - over * np.ptp(self.rv),
+            self.rv.max() + over * np.ptp(self.rv),
+            n,
+        )
+
+    def fitted_gaussian(self, n=1000, over=0):
+        """ Evaluate the Gaussian fit to the CCF at `n` points """
+        eccf = self.eccf if self._use_errors else None
+        if n == 'rv':
+            vv = self.rv
+        else:
+            vv = self._vv(n=1000, over=over)
+        return vv, gauss(vv, gaussfit(self.rv, self.ccf, yerr=eccf, 
+                                      guess_rv=self.pipeline_RV))
+
     def plot(self, ax=None, show_fit=True, show_bisector=False,
              show_residuals=False, over=0):
         """ Plot the CCF, together with the Gaussian fit and the bisector """
