@@ -6,6 +6,7 @@ import importlib.resources as resources
 from contextlib import contextmanager
 from copy import copy
 import numpy as np
+from scipy.interpolate import CubicSpline
 from astropy.io import fits
 
 from .ssh_files import ssh_fits_open
@@ -67,9 +68,10 @@ def natsort(s):
     ]
 
 
-def doppler_shift_ccf(radial_velocity, rv, ccf):
+def doppler_shift_ccf(radial_velocity, rv, ccf, kind='linear'):
     """ 
-    Doppler shift the CCF by `radial_velocity`, using linear interpolation.
+    Doppler shift the CCF by `radial_velocity`, using linear or cubic spline
+    interpolation.
 
     Args:
         radial_velocity (float):
@@ -78,12 +80,17 @@ def doppler_shift_ccf(radial_velocity, rv, ccf):
             The velocity values where the CCF is defined.
         ccf (ndarray):
             The values of the CCF profile.
+        kind (str, optional):
+            Interpolation method to use: 'linear' or 'cubic'. Defaults to 'linear'.
 
     Returns:
         tuple (ndarray, ndarray):
             Original velocity values and shifted CCF profile
     """
-    return rv, np.interp(rv + radial_velocity, rv, ccf)
+    if kind in ('cubic', 'spline'):
+        return CubicSpline(rv, ccf)(rv + radial_velocity)
+    else:
+        return rv, np.interp(rv + radial_velocity, rv, ccf)
 
 
 def doppler_shift_wave(wave, rv, f=1.0):

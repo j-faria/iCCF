@@ -3,7 +3,6 @@ from typing import List, Optional
 import numpy as np
 from numpy import exp, log, sqrt
 from scipy import optimize
-from scipy.interpolate import CubicSpline
 
 from .utils import numerical_gradient
 
@@ -446,7 +445,3 @@ def mexican_hat_fit(x: np.ndarray,
 
     return pfit
 
-
-def rv_shift(rv, ccf, radial_velocity):
-    """ Shift a CCF profile by `radial_velocity`. """
-    return CubicSpline(rv, ccf)(rv - radial_velocity)
