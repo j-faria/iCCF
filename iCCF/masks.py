@@ -104,6 +104,10 @@ class Mask:
         else:
             raise KeyError(key)
 
+    def to_cupy(self):
+        import cupy
+        return Mask.from_arrays(cupy.array(self.wavelength), cupy.array(self.contrast))
+
     def remove_line(self, index):
         """
         Remove the `index`th line from the mask. Note that subsequent calls to
