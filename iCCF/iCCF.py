@@ -821,19 +821,14 @@ def recreate_ccf_file(file, output=None, replace_rv=True, check=False, overwrite
     #     ):
     #         I.HDU[0].header[k] = v
 
-    Ind.HDU.writeto(new_file, output_verify='exception', checksum=True,
-                  overwrite=overwrite)
-    Ind.HDU.close()
-
-    print('Wrote', new_file)
-    return new_file
-
 
 def bjd(ind: list):
     return np.array([i.bjd for i in ind])
 
+
 def vrad(ind: list):
     return np.array([i.RV for i in ind])
+
 
 def svrad(ind: list):
     return np.array([i.RVerror for i in ind])
