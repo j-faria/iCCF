@@ -13,7 +13,7 @@ from .gaussian import gauss, gaussfit, FWHM as FWHMcalc, RV, RVerror, contrast
 from .bisector import BIS, BIS_HARPS as BIS_HARPS_calc, BIS_ESP as BIS_ESP_calc
 from .vspan import vspan
 from .wspan import wspan
-from .keywords import (getRVerror, getBJD, getRVarray, getINSTRUMENT)
+from .keywords import getRVerror, getBJD, getRVarray, getINSTRUMENT
 from . import writers
 from .utils import one_line_warning
 
@@ -150,7 +150,6 @@ class Indicators:
 
         # just one file
         elif isinstance(file, str):
-
             # for notccf in ('S1D', 'S2D'):
             #     if notccf in file:
             #         msg = f"filename {file} contains '{notccf}', "\
@@ -311,7 +310,10 @@ class Indicators:
 
     @property
     def Wspan(self):
-        """ Wspan indicator [km/s], see Santerne et al. (2015, MNRAS 451, 3) """
+        """
+        Wspan indicator [km/s]
+        see Santerne et al. (2015, MNRAS 451, 3)
+        """
         return wspan(self.rv, self.ccf)
 
     @property
@@ -325,6 +327,7 @@ class Indicators:
         eccf = self.eccf if self._use_errors else None
         return DeltaV(self.rv, self.ccf, eccf)
 
+    @property
     def ΔV(self):
         """
         ΔV indicator from a biGaussian fit [km/s]
@@ -403,7 +406,6 @@ class Indicators:
 
     ############################################################################
 
-
     @property
     def all(self):
         """All the indicators that are on"""
@@ -420,6 +422,7 @@ class Indicators:
         """
         self._check_for_HDU()
         from .keywords import getRV
+
         return getRV(None, hdul=self.HDU)
 
     @property
@@ -429,6 +432,7 @@ class Indicators:
         """
         self._check_for_HDU()
         from .keywords import getFWHM
+
         return getFWHM(None, hdul=self.HDU)
 
     @property
@@ -438,6 +442,7 @@ class Indicators:
         """
         self._check_for_HDU()
         from .keywords import getCONTRAST
+
         return getCONTRAST(None, hdul=self.HDU)
 
     @property
@@ -447,21 +452,33 @@ class Indicators:
         """
         self._check_for_HDU()
         from .keywords import getBIS
+
         return getBIS(None, hdul=self.HDU)
 
     @property
     def pipeline_RVerror(self):
-        """  The RV error as derived by the pipeline, from the header."""
+        """The RV error as derived by the pipeline, from the header."""
         self._check_for_HDU()
         return getRVerror(None, hdul=self.HDU)
 
     ############################################################################
+    def shift(self, radial_velocity, inplace=False):
+        """
+        Shift the CCF by a given radial velocity [km/s], using linear
+        interpolation. If inplace=True, replaces `self.ccf`.
+        """
+        from .utils import doppler_shift_ccf
+        _, ccf = doppler_shift_ccf(radial_velocity, self.rv, self.ccf)
+        if inplace:
+            self.ccf = ccf
+        return ccf
+
     def recalculate_ccf(self, orders=None, weighted=False):
         """
         Recompute the final CCF from the CCFs of individual orders
 
         Args:
-            orders (slice, int, tuple, list, array): 
+            orders (slice, int, tuple, list, array):
                 List of orders for which to sum the CCFs. If None, use all
                 orders. If an int, return directly the CCF of that order
                 (1-based).
@@ -469,57 +486,63 @@ class Indicators:
         if orders is None:
             return self.ccf
 
-        warnings.warn('In this function, orders are 1-based. Make sure the right orders are being used!')
+        warnings.warn(
+            "In this function, orders are 1-based. Make sure the right orders are being used!"
+        )
 
         if isinstance(orders, int):
             return self._SCIDATA[orders - 1]
+
+        if isinstance(orders, slice):
+            orders = np.arange(self.norders)[orders]
+        elif isinstance(orders, tuple):
+            orders = np.array(orders)
+        if weighted:
+            has_errors = np.where(
+                [(self._ERRDATA[j] != 0).all() for j in range(self.norders)]
+            )[0]
+            orders = np.array(orders)[np.isin(orders, has_errors)]
+            d = self._SCIDATA[orders - 1]
+            e = self._ERRDATA[orders - 1]
+            return np.average(d, axis=0, weights=1 / e**2) * len(orders)
         else:
-            if isinstance(orders, slice):
-                orders = np.arange(self.norders)[orders]
-            if weighted:
-                has_errors = np.where([(self._ERRDATA[j] != 0).all() for j in range(self.norders)])[0]
-                orders = np.array(orders)[np.isin(orders, has_errors)]
-                d = self._SCIDATA[orders - 1]
-                e = self._ERRDATA[orders - 1]
-                return np.average(d, axis=0, weights=1/e**2) * len(orders)
-            else:
-                return self._SCIDATA[orders - 1].sum(axis=0)
+            return self._SCIDATA[orders - 1].sum(axis=0)
 
     def remove_orders(self, orders, weighted=False):
         """
         Remove specific orders and recompute the CCF (CAREFUL: 1-based indexing)
 
         Args:
-            orders (slice, int, tuple, list, array): 
-                List of orders for which to sum the CCFs. If None, use all orders. 
+            orders (slice, int, tuple, list, array):
+                List of orders for which to sum the CCFs. If None, use all orders.
                 If an int, return directly the CCF of that order (1-based).
         """
         if isinstance(orders, int):
             orders = [orders]
-        
+        elif isinstance(orders, set):
+            orders = list(orders)
+
         previous_RV = self.RV
         all_orders = np.arange(1, self.norders + 1)
         orders = np.setdiff1d(all_orders, orders)
-        print('Recalculating CCF for subset of orders')
+        print("Recalculating CCF for subset of orders")
         self.ccf = self.recalculate_ccf(orders, weighted=weighted)
         if self.RV != previous_RV:
-            print('RV changed from', previous_RV)
-            print('             to', self.RV, 'km/s')
-
+            print("RV changed from", previous_RV)
+            print("             to", self.RV, "km/s")
 
     def reset(self):
-        """ Reset the CCF to the original CCF """
+        """Reset the CCF to the original CCF"""
         self.ccf = self._SCIDATA[-1]
 
-
     def check(self, verbose=False):
-        """ Check if the iCCF calculated values match the pipeline values """
+        """Check if the iCCF calculated values match the pipeline values"""
         Q = {
-            'RV': (self.RV, self.pipeline_RV),
-            'RVerror': (self.RVerror, self.pipeline_RVerror),
-            'FWHM': (self.FWHM, self.pipeline_FWHM),
-            'contrast': (self.contrast, self.pipeline_CONTRAST),
-            'BIS': (self.BIS, self.pipeline_BIS),
+            "RV": (self.RV, self.pipeline_RV),
+            "RVerror": (self.RVerror, self.pipeline_RVerror),
+            "FWHM": (self.FWHM, self.pipeline_FWHM),
+            "contrast": (self.contrast, self.pipeline_CONTRAST),
+            "BIS": (self.BIS, self.pipeline_BIS),
         }
         digits = self._precision
         matches = True
