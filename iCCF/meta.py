@@ -416,6 +416,7 @@ def calculate_s2d_ccf_parallel(s2dfile, rvarray, mask, mask_width=0.5,
         SSH host
     """
     hdu = fits.open(s2dfile)
+    tel = getTEL(s2dfile, hdul=hdu)
     norders, order_len = hdu[1].data.shape
 
     if ncores is None:
@@ -443,8 +444,8 @@ def calculate_s2d_ccf_parallel(s2dfile, rvarray, mask, mask_width=0.5,
         if not isinstance(flux_corr_params, dict):
             raise ValueError('flux_corr_params should be a dictionary')
 
-    BERV = hdu[0].header['HIERARCH ESO QC BERV']
-    BERVMAX = hdu[0].header['HIERARCH ESO QC BERVMAX']
+    BERV = hdu[0].header[f'HIERARCH {tel} QC BERV']
+    BERVMAX = hdu[0].header[f'HIERARCH {tel} QC BERVMAX']
 
     if verbose:
         print(f'Mask width: {mask_width}')
@@ -481,7 +482,7 @@ def calculate_s2d_ccf_parallel(s2dfile, rvarray, mask, mask_width=0.5,
             ## flux correction as in the pipeline
 
             # get the flux correction stored in the S2D file
-            keyword = 'HIERARCH ESO QC ORDER%d FLUX CORR'
+            keyword = f'HIERARCH {tel} QC ORDER%d FLUX CORR'
             flux_corr = np.array([hdu[0].header[keyword % o] 
                                   for o in range(1, norders + 1)])
             if (flux_corr == 0.0).all():
