@@ -120,7 +120,7 @@ def gaussfit(x: np.ndarray,
             (only if `return_errors=True`)
     """
     if (y == 0).all():
-        return np.full(4, np.nan)
+        return 4 * [np.nan]
 
     x = x.astype(y.dtype.type)
     y = y.astype(y.dtype.type)
@@ -279,14 +279,13 @@ def RVerror(rv, ccf, eccf):
     Calculate the uncertainty on the radial velocity, following the same steps
     as the ESPRESSO DRS pipeline.
 
-    Parameters
-    ----------
-    rv : array
-        The velocity values where the CCF is defined.
-    ccf : array
-        The values of the CCF profile.
-    eccf : array
-        The errors on each value of the CCF profile.
+    Args:
+        rv (ndarray):
+            The velocity values where the CCF is defined.
+        ccf (ndarray):
+            The values of the CCF profile.
+        eccf (ndarray):
+            The errors on each value of the CCF profile.
     """
     ccf_slope = numerical_gradient(rv, ccf)
     ccf_sum = np.sum((ccf_slope / eccf)**2)
@@ -297,14 +296,13 @@ def FWHM(rv, ccf, eccf=None, **kwargs):
     """
     Calculate the full width at half maximum (FWHM) of the CCF.
     
-    Parameters
-    ----------
-    rv : array
-        The velocity values where the CCF is defined.
-    ccf : array
-        The values of the CCF profile.
-    kwargs : dict
-        Keyword arguments passed directly to gaussfit
+    Args:
+        rv (ndarray):
+            The velocity values where the CCF is defined.
+        ccf (ndarray):
+            The values of the CCF profile.
+        kwargs (dict):
+            Keyword arguments passed directly to gaussfit
     """
     _, _, sig, _ = gaussfit(rv, ccf, yerr=eccf, **kwargs)
     return sig2fwhm(sig)
@@ -315,14 +313,13 @@ def FWHMerror(rv, ccf, eccf):
     Calculate the uncertainty on the FWHM, following the same steps as the
     ESPRESSO DRS pipeline.
 
-    Parameters
-    ----------
-    rv : array
-        The velocity values where the CCF is defined.
-    ccf : array
-        The values of the CCF profile.
-    eccf : array
-        The uncertainties on each value of the CCF profile.
+    Args:
+        rv (ndarray):
+            The velocity values where the CCF is defined.
+        ccf (ndarray):
+            The values of the CCF profile.
+        eccf (ndarray):
+            The uncertainties on each value of the CCF profile.
     """
     return 2.0 * RVerror(rv, ccf, eccf)
 
@@ -331,14 +328,13 @@ def contrast(rv, ccf, eccf=None, error=False, **kwargs):
     """
     Calculate the contrast (depth, measured in percentage) of the CCF.
     
-    Parameters
-    ----------
-    rv : array
-        The velocity values where the CCF is defined.
-    ccf : array
-        The values of the CCF profile.
-    eccf : array
-        The uncertainties on each value of the CCF profile.
+    Args:
+        rv (ndarray):
+            The velocity values where the CCF is defined.
+        ccf (ndarray):
+            The values of the CCF profile.
+        eccf (ndarray):
+            The uncertainties on each value of the CCF profile.
     """
     A, _, _, continuum = gaussfit(rv, ccf, yerr=eccf, **kwargs)
     if not error:
@@ -360,6 +356,7 @@ def mexican_hat(x, p):
     return p[0] * (1 - _x**2) * np.exp(-_x**2 / 2) + p[3]
 
 def _mexican_hat_partial_deriv(x, p):
+    """ Partial derivatives of a Mexican Hat with respect to each parameter. """
     A, x0, sig, _ = p
     mh = mexican_hat(x, [A, x0, sig, 0.0])
     dA = mexican_hat(x, [1.0, x0, sig, 0.0])
@@ -409,7 +406,7 @@ def mexican_hat_fit(x: np.ndarray,
             (only if `return_errors=True`)
     """
     if (y == 0).all():
-        return np.full(4, np.nan)
+        return 4 * [np.nan]
 
     x = x.astype(np.float64)
     y = y.astype(np.float64)
