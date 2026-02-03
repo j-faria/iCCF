@@ -590,34 +590,36 @@ class Indicators:
 
     def plot(self, ax=None, show_fit=True, show_bisector=False,
              show_residuals=False, over=0):
-        """ Plot the CCF, together with the Gaussian fit and the bisector """
+        """Plot the CCF, together with the Gaussian fit and the bisector"""
         import matplotlib.pyplot as plt
 
         if ax is None:
             _, ax = plt.subplots(constrained_layout=True)
 
-        label = basename(self.filename)
-        label = label.replace('%3A', ':')
+        if self.filename is None:
+            label = 'CCF data'
+        else:
+            label = basename(self.filename)
+            label = label.replace('%3A', ':')
+
         eccf = self.eccf if self._use_errors else None
 
         ax.errorbar(self.rv, self.ccf, eccf, fmt='s-', ms=3, label=label)
 
         if show_fit:
-            r = np.ptp(self.rv)
-            vv = np.linspace(self.rv.min() - over * r, self.rv.max() + over * r, 1000)
+            vv = self._vv(n=1000, over=over)
 
             try:
-                pfit = gaussfit(self.rv, self.ccf, yerr=eccf,
-                                guess_rv=self.pipeline_RV)
+                pfit = gaussfit(self.rv, self.ccf, yerr=eccf, guess_rv=self.pipeline_RV)
             except ValueError:
                 pfit = gaussfit(self.rv, self.ccf, yerr=eccf)
 
             ax.plot(vv, gauss(vv, pfit),
-                    label=f'Gaussian fit (RV={self.RV:.3f} km/s)')
+                    label=f"Gaussian fit (RV={self.RV:.3f} km/s)")
 
-        if show_residuals:
-            ax.errorbar(self.rv, self.ccf - gauss(self.rv, pfit), eccf,
-                        fmt='s-', ms=3, label='residuals')
+            if show_residuals:
+                ax.errorbar(self.rv, self.ccf - gauss(self.rv, pfit), eccf,
+                            fmt='s-', ms=3, label='residuals')
 
         if show_bisector:
             out = BIS(self.rv, self.ccf, full_output=True)
@@ -625,8 +627,8 @@ class Indicators:
             top_limit = out[-4][1]
             bot_limit = out[-5][0]
             yy = np.linspace(bot_limit, top_limit, 25)
-            ax.plot(bisf(yy), yy, '-s', ms=3,
-                    label=f'bisector (BIS={self.BIS*1e3:.3f} m/s)')
+            ax.plot(bisf(yy), yy, '-s', ms=3, 
+                    label=f"bisector (BIS={self.BIS * 1e3:.3f} m/s)")
 
         ax.legend(loc='upper right', bbox_to_anchor=(1.0, 1.15))
         ax.set(xlabel='RV [km/s]', ylabel='CCF')
@@ -634,22 +636,20 @@ class Indicators:
 
     def _get_x_for_plot_individual_CCFs(self):
         n = self.individual_RV.size
-        x = [
-            (self.rv - self.rv[0]) / np.ptp(self.rv) - 0.5 + i
-            for i in range(1, n + 1)
-        ]
+        x = [(self.rv - self.rv[0]) / np.ptp(self.rv) - 0.5 + i for i in range(1, n + 1)]
         return x
 
     def plot_individual_CCFs(self, ax=None, show_errors=True, show_fit=False, **kwargs):
         """ Plot the CCFs for individual orders """
         import matplotlib.pyplot as plt
 
-        if ax is None:
-            _, (ax, ax2) = plt.subplots(1, 2, figsize=(8, 4),
-                                        width_ratios=[4, 1.5],
-                                        constrained_layout=True)
+        if fig is None:
+            fig, (ax, ax2) = plt.subplots(1, 2, figsize=(8, 4),
+                                          width_ratios=[4, 1.5],
+                                          constrained_layout=True)
         else:
-            ax2 = None
+            assert len(fig.axes) == 2, f"fig must have two axes (got {len(fig.axes)})"
+            ax, ax2 = fig.axes
 
         n = self.individual_RV.size
         x = self._get_x_for_plot_individual_CCFs()
@@ -658,29 +658,29 @@ class Indicators:
 
         for i in range(1, n + 1):
             if show_errors:
-                ax.errorbar(x[i-1], self._SCIDATA[i - 1], self._ERRDATA[i - 1], **kwargs)
+                ax.errorbar(x[i-1], self._SCIDATA[i-1], self._ERRDATA[i-1], **kwargs)
             else:
-                ax.plot(x[i-1], self._SCIDATA[i - 1], **kwargs)
+                ax.plot(x[i-1], self._SCIDATA[i-1], **kwargs)
 
             if show_fit:
                 try:
-                    p = gaussfit(self.rv, self._SCIDATA[i - 1])
+                    p = gaussfit(self.rv, self._SCIDATA[i-1])
                     ax.plot(x[i-1], gauss(self.rv, p), 'k', alpha=0.7)
-                    ax.text(i, np.max(self._SCIDATA[i - 1]), f'{p[1]:.3f} m/s',
+                    ax.text(i, np.max(self._SCIDATA[i-1]), f"{p[1]:.3f} m/s",
                             rotation=60, fontsize=8)
                 except RuntimeError:
                     pass
 
-        ax.set(xlabel='spectral order', ylabel='CCF', xlim=(-5, n+5))
+        ax.set(xlabel='spectral order', ylabel='CCF', xlim=(-5, n + 5))
 
         if ax2:
             ax2.plot(self.rv, self.ccf, **kwargs)
             ax2.set(xlabel='RV [km/s]', ylabel='CCF')
 
-        return ax.figure, ax
+        return fig, (ax, ax2)
 
     def plot_individual_RV(self, ax=None, relative=False, **kwargs):
-        """ Plot the RV for individual orders """
+        """Plot the RV for individual orders"""
         import matplotlib.pyplot as plt
 
         if ax is None:
@@ -690,14 +690,15 @@ class Indicators:
         orders = np.arange(1, n + 1)
 
         kwargs.setdefault('fmt', 'o')
+        legend = kwargs.pop('legend', True)
 
         if relative:
             ax.errorbar(orders, (self.individual_RV - self.RV) / self.individual_RVerror,
                         self.individual_RVerror, **kwargs, label='individual order RV')
             ax.axhline(0.0, color='darkgreen', ls='--', label='final RV')
         else:
-            ax.errorbar(orders, self.individual_RV,
-                        self.individual_RVerror, **kwargs, label='individual order RV')
+            ax.errorbar(orders, self.individual_RV, self.individual_RVerror,
+                        **kwargs, label='individual order RV')
             ax.axhline(self.RV, color='darkgreen', ls='--', label='final RV')
             nans = np.isnan(self.individual_RV)
             if nans.any():
@@ -707,20 +708,19 @@ class Indicators:
         # e = np.full_like(orders, self.RVerror, dtype=float)
         # ax.fill_between(orders, m-e, m+e, color='g', alpha=0.3)
 
-        if kwargs.get('legend', True):
+        if legend:
             ax.legend()
 
         if relative:
-            ax.set(xlabel='spectral order', ylabel='RV - final RV [m/s]', xlim=(-5, n+5))
+            ax.set(xlabel='spectral order', ylabel='RV - final RV [m/s]', xlim=(-5, n + 5))
         else:
-            ax.set(xlabel='spectral order', ylabel='RV [m/s]', xlim=(-5, n+5))
+            ax.set(xlabel='spectral order', ylabel='RV [m/s]', xlim=(-5, n + 5))
 
         return ax.figure, ax
 
 
-def indicators_from_files(files, rdb_format=True, show=True, show_bjd=True,
+def indicators_from_files(files, rdb_format=True, show=True, show_bjd=True, 
                           sort_bjd=True, **kwargs):
-
     if sort_bjd:
         files = sorted(files, key=getBJD)
 
