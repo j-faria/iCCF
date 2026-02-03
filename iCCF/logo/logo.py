@@ -17,7 +17,9 @@ ax.text(2.8, -3, 'CCF', va='center', ha='center', fontsize=30, color='#CC3333',
         weight='bold')
 ax.axis('off')
 
-# fig.savefig('logo.png', transparent=True)
+kw = dict(transparent=True, bbox_inches='tight', dpi=300)
+fig.savefig('logo.png', **kw)
+fig.savefig('../../docs/assets/images/logo.png', **kw)
 plt.show()
 
 
@@ -29,10 +31,10 @@ ax.fill_between(x, y1, y2, color='k')
 ax.set(xlim=(-4, 4), ylim=(-6, 0))
 # ax.add_artist(Circle((1, -3), 1, color='w'))
 ax.axis('off')
+# fig.savefig('../../assets/images/favicon.png', transparent=True)
 
-fig.savefig('../../assets/images/favicon.png', transparent=True)
-from PIL import Image
-icon_sizes = [(16,16), (32, 32), (48, 48), (64,64)]
-img = Image.open('../../assets/images/favicon.png')
-img.save('../../assets/images/favicon.ico', sizes=icon_sizes)
-plt.show()
+# from PIL import Image
+# icon_sizes = [(16,16), (32, 32), (48, 48), (64,64)]
+# img = Image.open('../../assets/images/favicon.png')
+# img.save('../../assets/images/favicon.ico', sizes=icon_sizes)
+# plt.show()
