@@ -742,10 +742,9 @@ def indicators_from_files(files, rdb_format=True, show=True, show_bjd=True,
                     print(I.on_indicators)
 
         if rdb_format:
-            print('\t'.join([f'{bjd:<.6f}'] + [f'{ind:<.5f}'
-                                               for ind in I.all]))
+            print("\t".join([f'{bjd:<.6f}'] + [f'{ind:<.5f}' for ind in I.all]))
         else:
-            print((bjd, ) + I.all)
+            print((bjd,) + I.all)
 
 
 def add_order_by_order_info(Ind: Indicators):
@@ -753,8 +752,9 @@ def add_order_by_order_info(Ind: Indicators):
     Adds order-by-order RV and FWHM to the HDU of the indicators object `I`.
     """
     from astropy.io import fits
+
     Ind._warnings = False
-    
+
     col1 = fits.Column(name='order', array=np.arange(1, Ind.norders + 1), format='I')
 
     # is SCIDATA a float32? (ignore endianness)
@@ -775,14 +775,13 @@ def add_order_by_order_info(Ind: Indicators):
     return Ind
 
 
-def recreate_ccf_file(file, output=None, replace_rv=True, check=False,
-                      overwrite=False):
+def recreate_ccf_file(file, output=None, replace_rv=True, check=False, overwrite=False):
     Ind = Indicators.from_file(file, keep_open=True)
     assert isinstance(Ind, Indicators)
-    
+
     new_file = output or file.replace('.fits', '.iccf.fits')
     if os.path.exists(new_file) and not overwrite:
-        print(f'output file ({new_file}) already exists, not overwriting')
+        print(f"output file ({new_file}) already exists, not overwriting")
         return
 
     if check:
@@ -796,8 +795,14 @@ def recreate_ccf_file(file, output=None, replace_rv=True, check=False,
         Ind.HDU[0].header['HIERARCH ESO QC CCF CONTRAST'] = Ind.contrast
         Ind.HDU[0].header['HIERARCH ESO QC CCF CONTRAST ERROR'] = Ind.contrast_error
 
-    print(f'Adding order-by-order RV and FWHM to {file}')
+    print(f"Adding order-by-order RV and FWHM to {file}")
     Ind = add_order_by_order_info(Ind)
+
+    Ind.HDU.writeto(new_file, output_verify='exception', checksum=True, overwrite=overwrite)
+    Ind.HDU.close()
+
+    print("Wrote", new_file)
+    return new_file
 
     # order_by_order_values = (
     #     I.individual_RV, I.individual_RVerror,
