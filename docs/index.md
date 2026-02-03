@@ -13,13 +13,12 @@ order: 0
   th {display: none;}
 </style>
 
-![logo](assets/images/logo.png)
+![logo](assets/images/logo.png){:style="width: 70%; margin: auto;"}
 
 
-This package provides clear and well-documented implementations of common  
-line profile indicators measured from the cross-correlation function (CCF).  
-And many other utility functions to work with CCFs.
-
+This package provides clear and well-documented implementations of common line
+profile indicators measured from the cross-correlation function (CCF), as well
+as many other utility functions to work with CCFs.
 
 ## Installation
 
@@ -45,9 +44,9 @@ If you experience any problems during installation,
 ## Getting started
 
 If you want to read more about CCFs, go 
-[here]({{ site.baseurl }}{% link CCF.md %}).  
+[here](CCF.md).  
 The list and description of the indicators implemented in **iCCF** is
-[here]({{ site.baseurl }}{% link indicators.md %}).
+[here](indicators.md).
 
 
 Let's start by using **iCCF** with the provided example data.
@@ -100,13 +99,18 @@ if you use this package.
   - [Figueira et al 2013](https://www.aanda.org/articles/aa/abs/2013/09/aa20779-12/aa20779-12.html){:target="_blank"}
   - [Santerne et al 2015](https://doi.org/10.1093/mnras/stv1080){:target="_blank"}
   - [Lanza et al 2018](https://doi.org/10.1051/0004-6361/201731010){:target="_blank"}
-  
+
 
 ## See also
 
-- Similar codes were developed by Figueira et al. A&A 557, A93 (2013)  
-  with a Python package available [here](https://bitbucket.org/pedrofigueira/line-profile-indicators/src/master/){:target="_blank"}
-  (described in Appendix A of Santos et al. A&A 566, A35 (2014))
+- Similar codes were developed by 
+  [Figueira et al 2013](https://www.aanda.org/articles/aa/abs/2013/09/aa20779-12/aa20779-12.html){:target="_blank"},
+  with a Python package available
+  [here](https://bitbucket.org/pedrofigueira/line-profile-indicators/src/master/){:target="_blank"}
+  (described in Appendix A of 
+  [Santos et al. 2014](https://www.aanda.org/articles/aa/full_html/2014/06/aa23808-14/aa23808-14.html){:target="_blank"})
 
-- A similar package (in IDL) was developed by Lanza et al. A&A 616, A155 (2018).  
-  It is available [here](https://www.ict.inaf.it/gitlab/antonino.lanza/HARPSN_spectral_line_profile_indicators){:target="_blank"}.
+- A similar package (in IDL) was developed by
+  [Lanza et al 2018](https://doi.org/10.1051/0004-6361/201731010){:target="_blank"}. 
+  It is available
+  [here](https://www.ict.inaf.it/gitlab/antonino.lanza/HARPSN_spectral_line_profile_indicators){:target="_blank"}.

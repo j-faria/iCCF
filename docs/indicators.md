@@ -6,7 +6,8 @@ A picture is sometimes worth a thousand words, and this plot from [Santerne et
 al (2015)](https://doi.org/10.1093/mnras/stv1080){:target="_blank"} illustrates
 quite well some of the commonly used line-profile indicators.
 
-![](https://oup.silverchair-cdn.com/oup/backfile/Content_public/Journal/mnras/451/3/10.1093/mnras/stv1080/2/m_stv1080figa1.jpeg?Expires=1758699556&Signature=CcJJnXmxYtfsgk1qG2kz~VG6WEZFNvlQmbmPLNtTsAgv2FrpH-SqT-2c00AeOFmWnJc0ZNMzOd99LbCm4CgYXuHxlQR~xP9WeJo7JlmoKzi4DHu9rDcrQS2dZA7Ebm56--XIVXi5FmGEjOSJ3LipMvFFJB2VWOVEBOhJSfvfkpc2KHgrgM3JKXV6tK9ZV4V4eXRTFiZ2fN3xGOfise4pyzbqQRztYckCZfcIHKW9KDz7amOlPVse-IM48Rhh-vn2tUo1foKfFfzbnZNzc3NIf7HWzvfKxmSknRp2I4Sm5QJa532NqLTn4btvfVne7Hi~tYJUh0aXpKajZEylZf~gHw__&Key-Pair-Id=APKAIE5G5CRDK6RD3PGA)
+
+![](assets/images/santerne2015.jpeg){width=70%}
 
 
 Currently, the following line profile indicators are implemented in **iCCF**
