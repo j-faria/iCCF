@@ -261,10 +261,9 @@ def RV(rv, ccf, eccf=None, **kwargs):
     """
     Calculate the radial velocity as the center of a Gaussian fit the CCF.
     
-    Parameters
-    ----------
-    rv : array
-        The velocity values where the CCF is defined.
+    Args:
+        rv (ndarray):
+            The velocity values where the CCF is defined.
     ccf : array
         The values of the CCF profile.
     kwargs : dict
