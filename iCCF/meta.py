@@ -14,11 +14,11 @@ from astropy.io import fits
 from astropy.utils.exceptions import AstropyWarning
 from tqdm import tqdm
 
-from iCCF.keywords import getINSTRUMENT
 
 from .iCCF import Indicators
 from .masks import Mask
 from .utils import get_ncores, find_data_file, disable_exception_traceback
+from .keywords import getINSTRUMENT, getMASK, getTEL, getKW
 
 # global dictionary to store shared-memory variables
 var_dict = {}
@@ -680,18 +680,20 @@ def calculate_ccf(filename, mask=None, rvarray=None, output=None, clobber=True,
     directory, file = os.path.split(filename)
     s2dhdu_header = fits.getheader(filename)
 
+    TEL = getTEL(filename)
     instrument = getINSTRUMENT(filename)
 
     mask_widths = {
         'ESPRESSO': 0.5,
         'HARPS': 0.82,
+        'HARPN': 0.82,
         'NIRPS': 1.0
     }
     kwargs.setdefault('mask_width', mask_widths[instrument])
 
     if mask is None:
-        mask = s2dhdu_header['HIERARCH ESO QC CCF MASK']
-    
+        mask = getMASK(filename)
+
     print('Using CCF mask:', mask)
     if isinstance(mask, str):
         mask_str = mask
@@ -722,18 +724,22 @@ def calculate_ccf(filename, mask=None, rvarray=None, output=None, clobber=True,
         return ccf_file
 
     if rvarray is None:
-        try:
-            OBJ_RV = s2dhdu_header['HIERARCH ESO OCS OBJ RV']
-        except KeyError:
-            OBJ_RV = s2dhdu_header['HIERARCH ESO TEL TARG RADVEL']
-        start = s2dhdu_header['HIERARCH ESO RV START']
-        step = s2dhdu_header['HIERARCH ESO RV STEP']
+        OBJ_RV_keywords = [f"HIERARCH {TEL} OCS OBJ RV", f"HIERARCH {TEL} TEL TARG RADVEL"]
+        getOBJRV = getKW("OBJ RV", OBJ_RV_keywords)
+        OBJ_RV = getOBJRV(filename)
+
+        # try:
+        #     OBJ_RV = s2dhdu_header['HIERARCH ESO OCS OBJ RV']
+        # except KeyError:
+        #     OBJ_RV = s2dhdu_header['HIERARCH ESO TEL TARG RADVEL']
+        start = s2dhdu_header[f'HIERARCH {TEL} RV START']
+        step = s2dhdu_header[f'HIERARCH {TEL} RV STEP']
         end = OBJ_RV + (OBJ_RV - start)
         rvarray = np.arange(start, end + step, step)
 
     flux_corr = kwargs.get(
         'do_flux_corr', 
-        bool(s2dhdu_header.get('HIERARCH ESO QC SCIRED FLUX CORR CHECK'))
+        bool(s2dhdu_header.get(f'HIERARCH {TEL} QC SCIRED FLUX CORR CHECK'))
     )
     kwargs['do_flux_corr'] = flux_corr
 
@@ -758,22 +764,22 @@ def calculate_ccf(filename, mask=None, rvarray=None, output=None, clobber=True,
     Ind = Indicators(rvarray, ccf[-1], ccfe[-1])
 
     phdr = fits.Header(s2dhdu_header, copy=True)
-    phdr['HIERARCH ESO RV START'] = rvarray[0]
-    phdr['HIERARCH ESO RV STEP'] = np.ediff1d(rvarray)[0]
-    phdr['HIERARCH ESO QC CCF MASK'] = mask_str
+    phdr[f'HIERARCH {TEL} RV START'] = rvarray[0]
+    phdr[f'HIERARCH {TEL} RV STEP'] = np.ediff1d(rvarray)[0]
+    phdr[f'HIERARCH {TEL} QC CCF MASK'] = mask_str
 
     try:
         if np.isnan(Ind.RV):
             warnings.warn('CCF RV is NaN')
         else:
-            phdr['HIERARCH ESO QC CCF RV'] = Ind.RV
-            phdr['HIERARCH ESO QC CCF RV ERROR'] = Ind.RVerror
-            phdr['HIERARCH ESO QC CCF FWHM'] = Ind.FWHM
-            phdr['HIERARCH ESO QC CCF FWHM ERROR'] = Ind.FWHMerror
-            phdr['HIERARCH ESO QC CCF BIS SPAN'] = Ind.BIS
-            phdr['HIERARCH ESO QC CCF BIS SPAN ERROR'] = Ind.BISerror
-            phdr['HIERARCH ESO QC CCF CONTRAST'] = Ind.contrast
-        # # phdr['HIERARCH ESO QC CCF CONTRAST ERROR'] = Ind.contrasterror # TODO
+            phdr[f'HIERARCH {TEL} QC CCF RV'] = Ind.RV
+            phdr[f'HIERARCH {TEL} QC CCF RV ERROR'] = Ind.RVerror
+            phdr[f'HIERARCH {TEL} QC CCF FWHM'] = Ind.FWHM
+            phdr[f'HIERARCH {TEL} QC CCF FWHM ERROR'] = Ind.FWHMerror
+            phdr[f'HIERARCH {TEL} QC CCF BIS SPAN'] = Ind.BIS
+            phdr[f'HIERARCH {TEL} QC CCF BIS SPAN ERROR'] = Ind.BISerror
+            phdr[f'HIERARCH {TEL} QC CCF CONTRAST'] = Ind.contrast
+        # # phdr[f'HIERARCH {TEL} QC CCF CONTRAST ERROR'] = Ind.contrasterror # TODO
         # # 'ESO QC CCF FLUX ASYMMETRY' # TODO
     except Exception as e:
         warnings.warn(str(e))
