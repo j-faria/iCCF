@@ -639,8 +639,8 @@ class Indicators:
         x = [(self.rv - self.rv[0]) / np.ptp(self.rv) - 0.5 + i for i in range(1, n + 1)]
         return x
 
-    def plot_individual_CCFs(self, ax=None, show_errors=True, show_fit=False, **kwargs):
-        """ Plot the CCFs for individual orders """
+    def plot_individual_CCFs(self, fig=None, show_errors=True, show_fit=False, **kwargs):
+        """Plot the CCFs for individual orders"""
         import matplotlib.pyplot as plt
 
         if fig is None:
@@ -731,10 +731,9 @@ def indicators_from_files(files, rdb_format=True, show=True, show_bjd=True,
         I = Indicators.from_file(f, **kwargs)  # noqa: E741
         if j == 0 and show:
             if rdb_format:
-                lst = (['jdb'] + I.on_indicators_rdb) if show_bjd \
-                    else I.on_indicators_rdb
-                print('\t'.join(lst))
-                print('\t'.join([len(s) * '-' for s in lst]))
+                lst = ((['jdb'] + I.on_indicators_rdb) if show_bjd else I.on_indicators_rdb)
+                print("\t".join(lst))
+                print("\t".join([len(s) * "-" for s in lst]))
             else:
                 if show_bjd:
                     print(['jdb'] + I.on_indicators)
