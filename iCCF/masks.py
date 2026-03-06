@@ -34,12 +34,8 @@ class Mask:
         else:
             self.mask_name = mask
             self.instrument = instrument or 'ESPRESSO'
-            if self.instrument == 'CORALIE':
-                end = '.mas'
-                old_format = True
-            else:
-                end = '.fits'
-                old_format = False
+            end = '.fits'
+            old_format = False
 
             mask_file = self._mask_file = f'{self.instrument}_{mask}{end}'
 
@@ -78,7 +74,9 @@ class Mask:
         av = find_data_file('NIRPS_*.fits')
         av += find_data_file('ESPRESSO_*.fits')
         av += find_data_file('HARPS_*.fits')
+        av += find_data_file('HARPN_*.fits')
         av += find_data_file('CORALIE_*.mas')
+        av += find_data_file('CORALIE_*.fits')
         return [path.stem for path in av]
 
     @property
