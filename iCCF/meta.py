@@ -688,9 +688,14 @@ def calculate_ccf(filename, mask=None, rvarray=None, output=None, clobber=True,
         'ESPRESSO': 0.5,
         'HARPS': 0.82,
         'HARPN': 0.82,
-        'NIRPS': 1.0
+        'NIRPS': 1.0,
+        'CORALIE': 1.73,
     }
-    kwargs.setdefault('mask_width', mask_widths[instrument])
+    try:
+        kwargs.setdefault('mask_width', mask_widths[instrument])
+    except KeyError:
+        msg = f'Unknown mask width for {instrument}. Please provide the "mask_width" argument'
+        raise ValueError(msg) from None
 
     if mask is None:
         mask = getMASK(filename)
