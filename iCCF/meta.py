@@ -386,24 +386,24 @@ def calculate_s2d_ccf_parallel(s2dfile, rvarray, mask, mask_width=0.5,
         The name of the S2D file
     rvarray : array
         RV array where to calculate the CCF
-    order : str or int
-        Either 'all' to calculate the CCF for all orders, or the order
-    mask : str
+    mask : dict-like
         An object with 'lambda' and 'contrast' keys corresponding to the CCF
-        mask lines.
+        mask lines
     mask_width : float
         The width of the mask "lines" in km/s
+    order : str or int
+        Either 'all' to calculate the CCF for all orders, or the order
     ncores : int
         Number of CPU cores to use for the calculation (default: all available)
-    verbose : bool, default True
+    verbose : bool
         Print messages and a progress bar during the calculation
-    full_output : bool, default False
+    full_output : bool
         Return all the quantities that went into the CCF calculation (some 
         extracted from the S2D file)
-    smart_blaze : bool, default True
+    smart_blaze : bool
         If True, the function will try to reconstruct the blaze file by looking
         for the corresponding '*S2D_BLAZE*' file
-    ignore_blaze : bool, default True
+    ignore_blaze : bool
         If True, the function completely ignores any blaze correction and takes
         the flux values as is from the S2D file
     do_flux_corr : bool
