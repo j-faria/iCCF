@@ -162,9 +162,12 @@ def setup_blaze(ignore_blaze, smart_blaze, s2dfile, hdu, ssh, verbose):
             s2d_blaze_file = s2dfile.replace('S2D_SKYSUB_A', 'S2D_A')
             s2d_blaze_file = s2d_blaze_file.replace('S2D_A', 'S2D_BLAZE_A')
             s2d_blaze_file = s2d_blaze_file.replace('S2D_TELL_CORR_A', 'S2D_BLAZE_TELL_CORR_A')
-            if verbose:
-                print(f'Using file {s2d_blaze_file} for blaze correction')
+            s2d_blaze_file = s2d_blaze_file.replace('ES_S2DA', 'ES_S2BA')
             if os.path.exists(s2d_blaze_file):
+                if s2d_blaze_file == s2dfile:
+                    raise FileNotFoundError
+                if verbose:
+                    print(f'Using file {s2d_blaze_file} for blaze correction')
                 with fits.open(s2d_blaze_file) as hdu_s2d_blaze:
                     with np.errstate(invalid='ignore'):
                         blaze = hdu_s2d_blaze[1].data / hdu[1].data
