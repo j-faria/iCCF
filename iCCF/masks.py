@@ -192,7 +192,8 @@ class Mask:
         self.wavelength = self._wavelength
         self.contrast = self._contrast
 
-    def plot(self, ax=None, rv=0, down=False, factor=1, show_original=True, norm=False, **kwargs):
+    def plot(self, ax=None, rv=0, down=False, factor=1, show_original=True,
+             norm=False, **kwargs):
         """ Plot the mask
 
         Args:

@@ -733,7 +733,11 @@ def calculate_ccf(filename, mask=None, rvarray=None, output=None, clobber=True,
         return ccf_file
 
     if rvarray is None:
-        OBJ_RV_keywords = [f"HIERARCH {TEL} OCS OBJ RV", f"HIERARCH {TEL} TEL TARG RADVEL"]
+        OBJ_RV_keywords = [
+            f"HIERARCH {TEL} OCS OBJ RV",
+            f"HIERARCH {TEL} TEL TARG RADVEL",
+            f"HIERARCH {TEL} OBS TARG RADVEL",
+        ]
         getOBJRV = getKW("OBJ RV", OBJ_RV_keywords)
         OBJ_RV = getOBJRV(filename)
 
