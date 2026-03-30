@@ -22,7 +22,17 @@ def _try_keywords(hdul, *keywords, exception=None):
 
 def getTEL(filename, hdul=None):
     hdul = _check_hdul(hdul, filename)
-    return hdul[0].header['TELESCOP'][:3]
+    TEL = 'ESO'
+    try:
+        hdul[0].header['HIERARCH ESO INS MODE']
+        TEL = 'ESO'
+    except KeyError:
+        try:
+            hdul[0].header['HIERARCH TNG INS MODE']
+            TEL = 'TNG'
+        except KeyError:
+            pass
+    return TEL
 
 class getKW:
     __call_doc__ = """
