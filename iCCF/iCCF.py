@@ -127,6 +127,9 @@ class Indicators:
         if isinstance(file, list) and len(file) == 1:
             file = file[0]
 
+        if isinstance(file, Path):
+            file = file.as_posix()
+
         if '*' in file or '?' in file:
             file = glob(file)
 
