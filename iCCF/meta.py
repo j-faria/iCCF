@@ -681,7 +681,9 @@ def calculate_ccf(filename, mask=None, rvarray=None, output=None, clobber=True,
         rv_width (float, optional):
             If `rvarray` is not provided, this parameter sets the RV range
             around the target's RV (extracted from the S2D header) where the CCF
-            will be calculated.
+            will be calculated. Note that
+                rvarray = [OBJ_RV - rv_width, OBJ_RV + rv_width]
+            so `rv_width` is actually a "half-width".
         verbose (bool, default True):
             Print status messages and progress bar.
         **kwargs
