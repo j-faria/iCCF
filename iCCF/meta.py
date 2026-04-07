@@ -648,6 +648,7 @@ def calculate_s1d_ccf_parallel(s1dfile, rvarray, mask_file='ESPRESSO_G2.fits',
 
 def calculate_ccf(filename, mask=None, rvarray=None, output=None, clobber=True,
                   add_order_by_order_info=True, keep_prefix=False,
+                  rv_start=None, rv_step=None, rv_end=None, rv_width=None,
                   verbose=True, **kwargs):
     """
     Calculate the CCF for an S2D file and save the result to a fits file.
@@ -674,6 +675,13 @@ def calculate_ccf(filename, mask=None, rvarray=None, output=None, clobber=True,
             If True and `filename` has a directory prefix, the output CCF file
             will be saved in that same directory. Otherwise, it will be saved in
             the current directory.
+        rv_start, rv_step, rv_end (float, optional):
+            If `rvarray` is not provided, these parameters will be used to build
+            the RV array, or extracted from the S2D header if not provided.
+        rv_width (float, optional):
+            If `rvarray` is not provided, this parameter sets the RV range
+            around the target's RV (extracted from the S2D header) where the CCF
+            will be calculated.
         verbose (bool, default True):
             Print status messages and progress bar.
         **kwargs
@@ -703,7 +711,9 @@ def calculate_ccf(filename, mask=None, rvarray=None, output=None, clobber=True,
     if mask is None:
         mask = getMASK(filename)
 
-    print('Using CCF mask:', mask)
+    if verbose:
+        print('Using CCF mask:', mask)
+
     if isinstance(mask, str):
         mask_str = mask
         mask_file = f"{instrument}_{mask}.fits"
@@ -741,13 +751,14 @@ def calculate_ccf(filename, mask=None, rvarray=None, output=None, clobber=True,
         getOBJRV = getKW("OBJ RV", OBJ_RV_keywords)
         OBJ_RV = getOBJRV(filename)
 
-        # try:
-        #     OBJ_RV = s2dhdu_header['HIERARCH ESO OCS OBJ RV']
-        # except KeyError:
-        #     OBJ_RV = s2dhdu_header['HIERARCH ESO TEL TARG RADVEL']
-        start = s2dhdu_header[f'HIERARCH {TEL} RV START']
-        step = s2dhdu_header[f'HIERARCH {TEL} RV STEP']
-        end = OBJ_RV + (OBJ_RV - start)
+        start = rv_start or s2dhdu_header[f'HIERARCH {TEL} RV START']
+        end = rv_end or (OBJ_RV + (OBJ_RV - start))
+        step = rv_step or s2dhdu_header[f'HIERARCH {TEL} RV STEP']
+
+        if rv_width is not None:
+            start = OBJ_RV - rv_width
+            end = OBJ_RV + rv_width
+
         rvarray = np.arange(start, end + step, step)
 
     flux_corr = kwargs.get(
