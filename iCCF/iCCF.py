@@ -15,7 +15,7 @@ from .vspan import vspan
 from .wspan import wspan
 from .keywords import getRVerror, getBJD, getRVarray, getINSTRUMENT
 from . import writers
-from .utils import one_line_warning
+from .utils import nan_if_runtime_error, one_line_warning
 
 
 def rdb_names(names):
