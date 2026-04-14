@@ -3,6 +3,8 @@
 import numpy as np
 import os
 
+from iCCF import Indicators
+
 # standard_names = {
 #     'vrad': ('RV', 'vrad'),
 #     'fwhm': ('fwhm',),
@@ -36,7 +38,7 @@ def to_dict(I):
     return d
 
 
-def to_rdb(I, filename='stdout', clobber=False):
+def to_rdb(I: Indicators | list, filename='stdout', clobber=False):
     """ 
     Write the activity indicators in `I` to a .rdb file or stdout. If `clobber`
     is True, overwrite filename if it exists. 
@@ -56,32 +58,48 @@ def to_rdb(I, filename='stdout', clobber=False):
     header += '\n'
     header += '\t'.join('-' * len(c) for c in cols)
 
-    vals = (
-        I.HDU[0].header['MJD-OBS'],
-        I.RV,
-        I.RVerror,
-        I.FWHM,
-        I.contrast,
-        I.BIS,
-        I.Wspan,
-        I.Vspan,
-    )
+    if isinstance(I, Indicators):
+        vals = (
+            I.HDU[0].header['MJD-OBS'],
+            I.RV,
+            I.RVerror,
+            I.FWHM,
+            I.contrast,
+            I.BIS,
+            I.Wspan,
+            I.Vspan,
+        )
+        prec = I._precision
+
+    else:
+        vals = (
+            [i.bjd for i in I],
+            [i.RV for i in I],
+            [i.RVerror for i in I],
+            [i.FWHM for i in I],
+            [i.contrast for i in I],
+            [i.BIS for i in I],
+            [i.Wspan for i in I],
+            [i.Vspan for i in I],
+        )
+        prec = I[0]._precision
 
     # output format
     fmt = ['%.6f']  # bjd is special
-    fmt += (len(vals) - 1) * ['%%.%df' % I._nEPS]
+    fmt += (len(vals) - 1) * ['%%.%df' % prec]
+
 
     if filename == 'stdout':
-        fmt = [f.replace('%', '') for f in fmt]
-        print(header)
-        print('\t'.join(('{0:%s}' % f).format(v) for v, f in zip(vals, fmt)))
+        from io import StringIO
+        with StringIO() as f:
+            np.savetxt(f, np.c_[vals], header=header, delimiter='\t',
+                       comments='', fmt=fmt)
+            print(f.getvalue())
+
     else:
         if os.path.exists(filename):
-            if clobber:
-                pass
-            else:
-                print('File "%s" exists, not overwriting without clobber=True.'
-                      % filename)
+            if not clobber:
+                print(f'File "{filename}" exists, not overwriting without clobber=True.')
                 return
 
         np.savetxt(filename, np.c_[vals], header=header, delimiter='\t',
