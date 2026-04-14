@@ -3,8 +3,6 @@
 import numpy as np
 import os
 
-from iCCF import Indicators
-
 # standard_names = {
 #     'vrad': ('RV', 'vrad'),
 #     'fwhm': ('fwhm',),
@@ -38,11 +36,12 @@ def to_dict(I):
     return d
 
 
-def to_rdb(I: Indicators | list, filename='stdout', clobber=False):
+def to_rdb(I, filename='stdout', clobber=False):
     """ 
     Write the activity indicators in `I` to a .rdb file or stdout. If `clobber`
     is True, overwrite filename if it exists. 
     """
+    from .iCCF import Indicators
     cols = [
         'jdb',
         'vrad',
