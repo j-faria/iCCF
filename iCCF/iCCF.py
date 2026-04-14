@@ -238,6 +238,7 @@ class Indicators:
 
     ############################################################################
     @property
+    @nan_if_runtime_error
     def RV(self):
         """Radial velocity, from a Gaussian fit to the CCF [km/s]"""
         eccf = self.eccf if self._use_errors else None
@@ -269,6 +270,7 @@ class Indicators:
 
     ############################################################################
     @property
+    @nan_if_runtime_error
     def FWHM(self):
         """The full width at half maximum of the CCF [km/s]"""
         eccf = self.eccf if self._use_errors else None
@@ -287,6 +289,7 @@ class Indicators:
 
     ############################################################################
     @property
+    @nan_if_runtime_error
     def BIS(self):
         """Bisector span [km/s]"""
         # if self._warnings:
@@ -307,11 +310,13 @@ class Indicators:
 
     ############################################################################
     @property
+    @nan_if_runtime_error
     def Vspan(self):
         """Vspan indicator [km/s], see Boisse et al. (2011b, A&A 528 A4)"""
         return vspan(self.rv, self.ccf)
 
     @property
+    @nan_if_runtime_error
     def Wspan(self):
         """
         Wspan indicator [km/s]
@@ -320,6 +325,7 @@ class Indicators:
         return wspan(self.rv, self.ccf)
 
     @property
+    @nan_if_runtime_error
     def DeltaV(self):
         """
         DeltaV indicator from a biGaussian fit [km/s]
@@ -331,6 +337,7 @@ class Indicators:
         return DeltaV(self.rv, self.ccf, eccf)
 
     @property
+    @nan_if_runtime_error
     def ΔV(self):
         """
         ΔV indicator from a biGaussian fit [km/s]
@@ -340,12 +347,14 @@ class Indicators:
 
     ############################################################################
     @property
+    @nan_if_runtime_error
     def contrast(self):
         """The contrast (depth) of the CCF, measured in percentage"""
         eccf = self.eccf if self._use_errors else None
         return contrast(self.rv, self.ccf, eccf)
 
     @property
+    @nan_if_runtime_error
     def contrast_error(self):
         """Uncertainty on the contrast (depth) of the CCF, measured in percentage"""
         return contrast(self.rv, self.ccf, self.eccf, error=True)

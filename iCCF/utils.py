@@ -23,6 +23,16 @@ def no_stack_warning(message):
     warnings.showwarning = old_show
 
 
+def nan_if_runtime_error(func):
+    def wrapper(*args, **kwargs):
+        try:
+            return func(*args, **kwargs)
+        except RuntimeError as e:
+            print(*args, e)
+            return np.nan
+    return wrapper
+
+
 def get_ncores():
     try:
         ncores = len(os.sched_getaffinity(0))
