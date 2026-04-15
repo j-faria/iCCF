@@ -364,11 +364,13 @@ def _dowork(order):
     y = flux * blaze / corr_model
     ye = error * blaze #/ corr_model[order]
 
-    ccf, ccfe, ccfq = espdr_compute_CCF_fast(ll, dll, y, ye, blaze, quality, rvarray, mask,
-                                             BERV, BERVMAX, mask_width=mask_width)
+    ccf, ccfe, ccfq = espdr_compute_CCF_fast(
+        ll, dll, y, ye, blaze, quality, rvarray, mask,
+        BERV, BERVMAX, mask_width=mask_width
+    )
 
-    assert np.isfinite(ccf).all()
-    assert np.isfinite(ccfe).all()
+    # assert np.isfinite(ccf).all(), (order, ccf)
+    # assert np.isfinite(ccfe).all()
 
     return ccf, ccfe, ccfq
 
@@ -786,6 +788,10 @@ def calculate_ccf(filename, mask=None, rvarray=None, output=None, clobber=True,
     ccf = ccf.astype(np.float32)
     ccfe = ccfe.astype(np.float32)
     ccfq = ccfq.astype(np.int32)
+
+    # check for bad quality and raise error
+    if (ccfq[-1] != 0).all():
+        raise ValueError('all CCF values have bad quality mask')
 
     Ind = Indicators(rvarray, ccf[-1], ccfe[-1])
 

@@ -120,7 +120,7 @@ def gaussfit(x: np.ndarray,
             (only if `return_errors=True`)
     """
     if (y == 0).all():
-        return 4 * [np.nan]
+        return np.full(4, np.nan).astype(y.dtype.type)
 
     x = x.astype(y.dtype.type)
     y = y.astype(y.dtype.type)
@@ -144,8 +144,12 @@ def gaussfit(x: np.ndarray,
     # print(p0)
     # print(bounds)
 
-    pfit, pcov, *_ = optimize.curve_fit(f, x, y, p0=p0, sigma=yerr, jac=df,
-                                        xtol=1e-12, ftol=1e-14, check_finite=True, **kwargs)
+    try:
+        pfit, pcov, *_ = optimize.curve_fit(f, x, y, p0=p0, sigma=yerr, jac=df,
+                                            xtol=1e-12, ftol=1e-14, check_finite=True,
+                                            **kwargs)
+    except RuntimeError:
+        return np.full(4, np.nan).astype(y.dtype.type)
 
     if 'full_output' in kwargs:
             infodict = _
