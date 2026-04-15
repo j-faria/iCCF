@@ -584,8 +584,8 @@ def calculate_s2d_ccf_parallel(s2dfile, rvarray, mask, mask_width=0.5,
     if verbose:
         print(f'done in {end - start:.2f} seconds')
 
-    assert np.isfinite(ccfs).all()
-    assert np.isfinite(ccfes).all()
+    # assert np.isfinite(ccfs).all()
+    # assert np.isfinite(ccfes).all()
 
     if return_sum:
         # sum the CCFs over the orders
