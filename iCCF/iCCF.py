@@ -183,6 +183,8 @@ class Indicators:
             try:
                 I._ERRDATA = hdul[2].data
                 I._QUALDATA = hdul[3].data
+                if (I._QUALDATA[-1] != 0).all():
+                    warnings.warn('all CCF values have bad quality mask')
             except IndexError:
                 pass
             I.HDU = hdul
