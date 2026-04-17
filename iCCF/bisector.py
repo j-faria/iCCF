@@ -327,11 +327,10 @@ def BIS_ESP(rv, ccf, p0=None, guess_rv=None, plot=False, **kwargs):
         axs[1, 0].sharey(axs[1, 1])
 
     vv = np.linspace(rv.min(), rv.max(), 1000)
-    full_output = kwargs.pop('full_output', False)
 
-    p, info = gaussfit(rv, ccf, p0=p0, full_output=True)
-    # print(info[-2:])
+    p = gaussfit(rv, ccf, p0=p0)
     k, x0, sig, c = p
+
     # Higher errors are set on the bottom of the ccf fit, to fit only the top part
     arg_err = (gauss(rv, p) - c) / k
     sigma_err = 0.4 / 2.3548
