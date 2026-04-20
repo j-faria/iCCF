@@ -619,6 +619,8 @@ class Indicators:
         else:
             label = basename(self.filename)
             label = label.replace('%3A', ':')
+            if len(label) > 35:
+                label = label[:32] + '...'
 
         eccf = self.eccf if self._use_errors else None
 
