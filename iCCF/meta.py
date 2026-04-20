@@ -169,8 +169,11 @@ def setup_blaze(ignore_blaze, smart_blaze, s2dfile, hdu, ssh, verbose):
                 if verbose:
                     print(f'Using file {s2d_blaze_file} for blaze correction')
                 with fits.open(s2d_blaze_file) as hdu_s2d_blaze:
-                    with np.errstate(invalid='ignore'):
-                        blaze = hdu_s2d_blaze[1].data / hdu[1].data
+                    QUALDATA = hdu_s2d_blaze[3].data
+                    qual = np.where(QUALDATA == 0)
+                    blaze = np.ones_like(hdu[1].data)
+                    # with np.errstate(invalid='ignore'):
+                    blaze[qual] = hdu_s2d_blaze[1].data[qual] / hdu[1].data[qual]
             else:
                 raise FileNotFoundError(f'Could not find file: {s2d_blaze_file}') from None
         else:
