@@ -372,15 +372,19 @@ class Indicators:
 
         vals = np.zeros(self.norders, dtype=self._SCIDATA.dtype)
         for i, ccf in enumerate(self._SCIDATA[:-1]):
+            qual = self._QUALDATA[i, :]
+            ccf = ccf[qual == 0]
+            rv = self.rv[qual == 0]
+
             if np.count_nonzero(ccf) == 0:
                 vals[i] = np.nan
             else:
                 try:
                     if self._use_errors or needs_errors:
-                        eccf = self._ERRDATA[i, :]
+                        eccf = self._ERRDATA[i, qual == 0]
                     else:
                         eccf = None
-                    vals[i] = function(self.rv, ccf, eccf, **kwargs)
+                    vals[i] = function(rv, ccf, eccf, **kwargs)
                 except RuntimeError:
                     vals[i] = np.nan
         return vals
