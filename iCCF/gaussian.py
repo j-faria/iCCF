@@ -88,7 +88,7 @@ def gaussfit(x: np.ndarray,
              return_errors: bool = False,
              use_deriv: bool = True,
              guess_rv: Optional[float] = None,
-             **kwargs) -> List:
+             **kwargs):
     """
     Fit a Gaussian function to `x`,`y` (and, if provided, `yerr`) using
     least-squares, with initial guess `p0` = [A, x0, σ, offset]. If p0 is not
