@@ -119,8 +119,16 @@ def gaussfit(x: np.ndarray,
             Estimated uncertainties on the four parameters
             (only if `return_errors=True`)
     """
+    full_output = 'full_output' in kwargs
+
+    _nan = np.full(4, np.nan).astype(y.dtype.type)
+
     if (y == 0).all():
-        return np.full(4, np.nan).astype(y.dtype.type)
+        if return_errors:
+            if full_output:
+                return _nan, _nan, []
+            return _nan, _nan
+        return _nan
 
     x = x.astype(y.dtype.type)
     y = y.astype(y.dtype.type)
@@ -149,7 +157,11 @@ def gaussfit(x: np.ndarray,
                                             xtol=1e-12, ftol=1e-14, check_finite=True,
                                             **kwargs)
     except RuntimeError:
-        return np.full(4, np.nan).astype(y.dtype.type)
+        if return_errors:
+            if full_output:
+                return _nan, _nan, []
+            return _nan, _nan
+        return _nan
 
     if 'full_output' in kwargs:
             infodict = _

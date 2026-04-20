@@ -336,8 +336,7 @@ def BIS_ESP(rv, ccf, p0=None, guess_rv=None, plot=False, **kwargs):
     sigma_err = 0.4 / 2.3548
     gauss_err = 1.0 + 50.0 * np.exp(-(arg_err-1.0)*(arg_err-1.0)/2.0/sigma_err/sigma_err)
 
-    p_top, sig_top, info_top = gaussfit(rv, ccf, yerr=gauss_err, p0=p0,
-                                        return_errors=True, full_output=True)
+    p_top, sig_top = gaussfit(rv, ccf, yerr=gauss_err, p0=p0, return_errors=True)
     RV_top = p_top[1]
 
     if plot:
@@ -358,8 +357,7 @@ def BIS_ESP(rv, ccf, p0=None, guess_rv=None, plot=False, **kwargs):
     gauss_err = 1.0 + 50.0 * np.exp(-(arg_err-0.25)*(arg_err-0.25)/2.0/sigma_err/sigma_err)
     gauss_err[arg_err < 0.01] = 1.0
 
-    p_bottom, sig_bottom, info_bottom = gaussfit(rv, ccf, yerr=gauss_err, p0=p0, 
-                                                return_errors=True, full_output=True)
+    p_bottom, sig_bottom = gaussfit(rv, ccf, yerr=gauss_err, p0=p0, return_errors=True)
     # print(info_bottom[-2:])
     RV_bottom = p_bottom[1]
 
