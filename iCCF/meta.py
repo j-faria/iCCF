@@ -690,6 +690,10 @@ def calculate_ccf(filename, mask=None, rvarray=None, output=None, clobber=True,
             Print status messages and progress bar.
         **kwargs
             Keyword arguments passed directly to `calculate_s2d_ccf_parallel`
+    
+    Returns:
+        ccf_file: str
+            The name of the output CCF file
     """
 
     # read original S2D file
@@ -789,9 +793,9 @@ def calculate_ccf(filename, mask=None, rvarray=None, output=None, clobber=True,
     ccfe = ccfe.astype(np.float32)
     ccfq = ccfq.astype(np.int32)
 
-    # check for bad quality and raise error
+    # check for bad quality and raise warning
     if (ccfq[-1] != 0).all():
-        raise ValueError('all CCF values have bad quality mask')
+        warnings.warn('all CCF values have bad quality mask')
 
     Ind = Indicators(rvarray, ccf[-1], ccfe[-1])
 
