@@ -14,11 +14,19 @@ from astropy.io import fits
 from astropy.utils.exceptions import AstropyWarning
 from tqdm import tqdm
 
-
 from .iCCF import Indicators
 from .masks import Mask
-from .utils import get_ncores, find_data_file, disable_exception_traceback
+from .utils import get_ncores, find_data_file, print_logger
 from .keywords import getINSTRUMENT, getMASK, getTEL, getKW
+
+mask_widths = {
+    'ESPRESSO': 0.5,
+    'HARPS': 0.82,
+    'HARPN': 0.82,
+    'NIRPS': 1.0,
+    'CORALIE': 1.73,
+}
+
 
 # global dictionary to store shared-memory variables
 var_dict = {}
@@ -152,7 +160,8 @@ def find_blaze(s2dfile, hdu=None):
         if v == 'BLAZE_A':
             return k, header[k.replace('CATG', 'NAME')]
 
-def setup_blaze(ignore_blaze, smart_blaze, s2dfile, hdu, ssh, verbose):
+def setup_blaze(ignore_blaze, smart_blaze, s2dfile, hdu, ssh=None, 
+                verbose=True, logger=None):
     # find and read the blaze file
     if ignore_blaze:
         blaze = np.ones_like(hdu[1].data)
@@ -280,28 +289,31 @@ def calculate_s2d_ccf(s2dfile, rvarray, order='all',
     else:
         return np.array(ccfs), np.array(ccfes)
 
-def find_file(file, ssh=None, verbose=True):
+def find_file(file, ssh=None, verbose=True, logger=None):
+    if logger is None:
+        logger = print_logger
+
     if verbose:
-        print('Looking for file:', file)
+        logger.info(f'Looking for file: {file}')
 
     # first try here:
     if os.path.exists(file) or os.path.exists(file + '.fits'):
         if verbose:
-            print('\tfound it in current directory')
+            logger.info('\tfound it in current directory', flush=True)
         return glob(file + '*')[0]
 
     similar = glob(file + '*.fits')
     if len(similar) > 0:
         file = similar[0]
         if verbose:
-            print(f'\tfound a similar file in current directory ({file})')
+            logger.info(f'\tfound a similar file in current directory ({file})', flush=True)
         return file
 
     # try in iCCF/data
     try:
         f = find_data_file(file)
         if verbose:
-            print('\tfound file in iCCF/data')
+            logger.info('\tfound file in iCCF/data', flush=True)
         return f
     except FileNotFoundError:
         pass
@@ -313,7 +325,7 @@ def find_file(file, ssh=None, verbose=True):
         if len(found) == 0:
             raise FileNotFoundError(file)
         if verbose:
-            print('\tfound file:', found[-1])
+            logger.info(f'\tfound file: {found[-1]}', flush=True)
         return found[-1]
     except (subprocess.CalledProcessError, FileNotFoundError):
         if ssh is None:
@@ -329,7 +341,7 @@ def find_file(file, ssh=None, verbose=True):
             found = subprocess.check_output(locate_cmd.split())
             found = found.decode().split()
             if verbose:
-                print('\tfound file:', ssh + ':' + found[-1])
+                logger.info(f'\tfound file: {ssh}:{found[-1]}', flush=True)
         except subprocess.CalledProcessError:
             raise FileNotFoundError(file) from None
 
@@ -367,6 +379,13 @@ def _dowork(order):
     y = flux * blaze / corr_model
     ye = error * blaze #/ corr_model[order]
 
+    ll = ll[pixels]
+    dll = dll[pixels]
+    y = y[pixels]
+    ye = ye[pixels]
+    blaze = blaze[pixels]
+    quality = quality[pixels]
+
     ccf, ccfe, ccfq = espdr_compute_CCF_fast(
         ll, dll, y, ye, blaze, quality, rvarray, mask,
         BERV, BERVMAX, mask_width=mask_width
@@ -380,9 +399,10 @@ def _dowork(order):
 
 def calculate_s2d_ccf_parallel(s2dfile, rvarray, mask, mask_width=0.5, 
                                order='all', pixels=None, ncores=None,
-                               verbose=True, full_output=False, smart_blaze=True,
-                               ignore_blaze=False, do_flux_corr=False, ssh=None,
-                               flux_corr_params=None):
+                               verbose=True, logger=None, full_output=False, 
+                               smart_blaze=True, ignore_blaze=False, 
+                               do_flux_corr=False, flux_corr_params=None, 
+                               ssh=None):
     """
     Calculate the CCF between a 2D spectra and a mask. This function can lookup
     necessary files (locally or over SSH) and can perform the calculation in
@@ -423,6 +443,9 @@ def calculate_s2d_ccf_parallel(s2dfile, rvarray, mask, mask_width=0.5,
         tries the `locate` and `scp` commands to find and copy the file from the
         SSH host
     """
+    if logger is None:
+        logger = print_logger
+
     hdu = fits.open(s2dfile)
     tel = getTEL(s2dfile, hdul=hdu)
     norders, order_len = hdu[1].data.shape
@@ -431,7 +454,7 @@ def calculate_s2d_ccf_parallel(s2dfile, rvarray, mask, mask_width=0.5,
         ncores = get_ncores() // 2
 
     if verbose:
-        print(f'Using {ncores} CPU cores for the calculation')
+        logger.info(f'Using {ncores} CPU cores for the calculation')
 
     if order == 'all':
         orders = range(norders)
@@ -448,6 +471,14 @@ def calculate_s2d_ccf_parallel(s2dfile, rvarray, mask, mask_width=0.5,
         if verbose:
             pass
 
+    if pixels is None:
+        pixels = slice(None, None)
+    elif isinstance(pixels, range):
+        pixels = slice(*pixels)
+    elif isinstance(pixels, np.ndarray):
+        assert pixels.dtype == int, 'pixels should be an array of integers'
+        raise NotImplementedError('Not implemented yet')
+
     if flux_corr_params is not None:
         if not isinstance(flux_corr_params, dict):
             raise ValueError('flux_corr_params should be a dictionary')
@@ -456,11 +487,12 @@ def calculate_s2d_ccf_parallel(s2dfile, rvarray, mask, mask_width=0.5,
     BERVMAX = hdu[0].header[f'HIERARCH {tel} QC BERVMAX']
 
     if verbose:
-        print(f'Mask width: {mask_width}')
-        print(f'BERVMAX: {BERVMAX} km/s')
-        print(f'BERV: {BERV} km/s')
+        logger.debug(f'Mask width: {mask_width}')
+        logger.debug(f'BERVMAX: {BERVMAX} km/s')
+        logger.debug(f'BERV: {BERV} km/s')
 
-    blaze = setup_blaze(ignore_blaze, smart_blaze, s2dfile, hdu, ssh, verbose)
+    blaze = setup_blaze(ignore_blaze, smart_blaze, s2dfile, hdu, 
+                        ssh, verbose, logger)
 
     ll = hdu[5].data
     if ll.min() > mask['lambda'].max():
@@ -509,15 +541,15 @@ def calculate_s2d_ccf_parallel(s2dfile, rvarray, mask, mask_width=0.5,
 
         corr_model = np.polyval(coeff, hdu[5].data)
         if verbose:
-            print('Performing flux correction', end=' ')
-            print(f'(discarding {ignore} orders; '
-                  f'polynomial of degree {poly_deg})')
+            logger.info('Performing flux correction', end=' ')
+            logger.info(f'(discarding {ignore} orders; '
+                        f'polynomial of degree {poly_deg})')
             
-            print("Flux correction performed with min/max values:", end=' ')
-            print(f'{flux_corr.min():.6f}/{flux_corr.max():.6f}')
+            logger.info("Flux correction performed with min/max values:", end=' ')
+            logger.info(f'{flux_corr.min():.6f}/{flux_corr.max():.6f}')
     else:
         if verbose:
-            print('No flux correction performed')
+            logger.info('No flux correction performed')
         corr_model = np.ones(norders)
 
 
@@ -570,7 +602,8 @@ def calculate_s2d_ccf_parallel(s2dfile, rvarray, mask, mask_width=0.5,
                   scierrdata_shared, scierrdata_shape,
                   qualdata_shared, qualdata_shape,
                   lldlldata_shared, lldlldata_shape,
-                  BERV, BERVMAX, mask, mask_width, ),
+                  BERV, BERVMAX, mask, mask_width,
+                  pixels),
     )
 
     ## progress bar
@@ -585,7 +618,7 @@ def calculate_s2d_ccf_parallel(s2dfile, rvarray, mask, mask_width=0.5,
     end = pytime.time()
 
     if verbose:
-        print(f'done in {end - start:.2f} seconds')
+        logger.info(f'done in {end - start:.2f} seconds')
 
     # assert np.isfinite(ccfs).all()
     # assert np.isfinite(ccfes).all()
@@ -698,6 +731,9 @@ def calculate_ccf(filename, mask=None, rvarray=None, output=None, clobber=True,
         ccf_file: str
             The name of the output CCF file
     """
+    if verbose and logger is None:
+        from .utils import print_logger
+        logger = print_logger
 
     # read original S2D file
     directory, file = os.path.split(filename)
@@ -723,12 +759,12 @@ def calculate_ccf(filename, mask=None, rvarray=None, output=None, clobber=True,
         mask = getMASK(filename)
 
     if verbose:
-        print('Using CCF mask:', mask)
+        logger.info(f'Using CCF mask: {mask}', flush=True)
 
     if isinstance(mask, str):
         mask_str = mask
         mask_file = f"{instrument}_{mask}.fits"
-        mask_file = find_file(mask_file)
+        mask_file = find_file(mask_file, verbose=verbose, logger=logger)
         with fits.open(mask_file) as hdul:
             mask = hdul[1].data
     elif isinstance(mask, Mask):
@@ -750,27 +786,12 @@ def calculate_ccf(filename, mask=None, rvarray=None, output=None, clobber=True,
 
     if os.path.exists(ccf_file) and not clobber:
         if verbose:
-            print(f'Output CCF file exists: {ccf_file}')
+            logger.warning(f'Output CCF file exists: {ccf_file}')
         return ccf_file
 
     if rvarray is None:
-        OBJ_RV_keywords = [
-            f"HIERARCH {TEL} OCS OBJ RV",
-            f"HIERARCH {TEL} TEL TARG RADVEL",
-            f"HIERARCH {TEL} OBS TARG RADVEL",
-        ]
-        getOBJRV = getKW("OBJ RV", OBJ_RV_keywords)
-        OBJ_RV = getOBJRV(filename)
-
-        start = rv_start or s2dhdu_header[f'HIERARCH {TEL} RV START']
-        end = rv_end or (OBJ_RV + (OBJ_RV - start))
-        step = rv_step or s2dhdu_header[f'HIERARCH {TEL} RV STEP']
-
-        if rv_width is not None:
-            start = OBJ_RV - rv_width
-            end = OBJ_RV + rv_width
-
-        rvarray = np.arange(start, end + step, step)
+        if verbose:
+            logger.info(f'RV array: {start:.2f}:{end:.2f}:{step:.2f}')
 
     flux_corr = kwargs.get(
         'do_flux_corr', 
@@ -784,6 +805,7 @@ def calculate_ccf(filename, mask=None, rvarray=None, output=None, clobber=True,
     # else:
 
     kwargs['verbose'] = verbose
+    kwargs['logger'] = logger
 
     order = kwargs.pop('order', 'all')
     order = kwargs.pop('orders', order)
@@ -851,9 +873,9 @@ def calculate_ccf(filename, mask=None, rvarray=None, output=None, clobber=True,
         from .iCCF import add_order_by_order_info
         Ind = add_order_by_order_info(Ind)
 
-    if kwargs.get('verbose', True):
-        print('Output to:', ccf_file)
-    
+    if verbose:
+        logger.info(f'Output to: {ccf_file}')
+
     with warnings.catch_warnings():
         warnings.simplefilter('ignore', AstropyWarning)
         Ind.HDU.writeto(ccf_file, overwrite=True, checksum=True)
