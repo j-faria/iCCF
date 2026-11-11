@@ -1,3 +1,5 @@
+__lazy_modules__ = ['scipy', 'astropy']
+
 import os
 import sys
 import re
@@ -12,6 +14,28 @@ from astropy.io import fits
 from .ssh_files import ssh_fits_open
 
 _c = 299792.458
+
+
+class print_logger:
+    @staticmethod
+    def info(*args, **kwargs):
+        print(*args, **kwargs)
+
+    @staticmethod
+    def warning(*args, **kwargs):
+        print(*args, **kwargs)
+
+    @staticmethod
+    def error(*args, **kwargs):
+        print(*args, **kwargs)
+    
+    @staticmethod
+    def debug(*args, **kwargs):
+        print(*args, **kwargs)
+
+    @staticmethod
+    def critical(*args, **kwargs):
+        print(*args, **kwargs)
 
 
 def no_stack_warning(message):
