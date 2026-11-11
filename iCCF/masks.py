@@ -1,3 +1,4 @@
+__lazy_modules__ = ['astropy', 'matplotlib']
 import os
 import numpy as np
 from matplotlib import pyplot as plt
@@ -56,6 +57,18 @@ class Mask:
 
         self._wavelength = self.wavelength.copy()
         self._contrast = self.contrast.copy()
+
+    @classmethod
+    def from_file(cls, filename, instrument=None):
+        self = cls.__new__(cls)
+        with fits.open(filename) as f:
+            self.wavelength = f[1].data['lambda'].copy()
+            self.contrast = f[1].data['contrast'].copy()
+            self._wavelength = self.wavelength.copy()
+            self._contrast = self.contrast.copy()
+            self.mask_name = os.path.basename(filename).replace('.fits', '')
+            self.instrument = instrument or f[0].header['INSTRUME']
+        return self
 
     @classmethod
     def from_arrays(cls, wavelength, contrast, name: str = None, instrument: str = None):
