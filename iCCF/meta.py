@@ -682,12 +682,102 @@ def calculate_s1d_ccf_parallel(s1dfile, rvarray, mask_file='ESPRESSO_G2.fits',
     kw = None
     return ccf, ccfe, ccfq, kw
 
+def set_rv_array(filename, TEL, header, 
+                 rv_start=None, rv_end=None, rv_center=None, rv_step=None, rv_width=None):
+
+    if rv_center is None: 
+        OBJ_RV_keywords = [
+            f"HIERARCH {TEL} OCS OBJ RV",
+            f"HIERARCH {TEL} TEL TARG RADVEL",
+            f"HIERARCH {TEL} OBS TARG RADVEL",
+        ]
+        getOBJRV = getKW("OBJ RV", OBJ_RV_keywords)
+        OBJ_RV = getOBJRV(filename)
+    else:
+        OBJ_RV = rv_center
+
+    if rv_start is None:
+        start = header[f'HIERARCH {TEL} RV START']
+    else:
+        start = rv_start
+    if rv_end is None:
+        end = OBJ_RV + (OBJ_RV - start)
+    else:
+        end = rv_end
+    if rv_step is None:
+        step = header[f'HIERARCH {TEL} RV STEP']
+    else:
+        step = rv_step
+
+    if rv_width is not None:
+        start = OBJ_RV - rv_width
+        end = OBJ_RV + rv_width
+
+    rvarray = np.arange(start, end + step, step)
+    return rvarray, start, end, step
+
+def build_ccf_file(ccf, ccfe, ccfq, rvarray, mask_str, TEL, header,
+                   add_order_by_order_info=False):
+
+    Ind = Indicators(rvarray, ccf[-1], ccfe[-1])
+
+    phdr = fits.Header(header, copy=True)
+    phdr[f'HIERARCH {TEL} RV START'] = rvarray[0]
+    phdr[f'HIERARCH {TEL} RV STEP'] = np.ediff1d(rvarray)[0]
+    phdr[f'HIERARCH {TEL} QC CCF MASK'] = mask_str
+
+    try:
+        if np.isnan(Ind.RV):
+            warnings.warn('CCF RV is NaN')
+        else:
+            phdr[f'HIERARCH {TEL} QC CCF RV'] = Ind.RV
+            phdr[f'HIERARCH {TEL} QC CCF RV ERROR'] = Ind.RVerror
+            phdr[f'HIERARCH {TEL} QC CCF FWHM'] = Ind.FWHM
+            phdr[f'HIERARCH {TEL} QC CCF FWHM ERROR'] = Ind.FWHMerror
+            phdr[f'HIERARCH {TEL} QC CCF BIS SPAN'] = Ind.BIS
+            phdr[f'HIERARCH {TEL} QC CCF BIS SPAN ERROR'] = Ind.BISerror
+            phdr[f'HIERARCH {TEL} QC CCF CONTRAST'] = Ind.contrast
+        # # phdr[f'HIERARCH {TEL} QC CCF CONTRAST ERROR'] = Ind.contrasterror # TODO
+        # # 'ESO QC CCF FLUX ASYMMETRY' # TODO
+    except Exception as e:
+        warnings.warn(str(e))
+
+
+    phdu = fits.PrimaryHDU(header=phdr)
+
+    # science data, the actual CCF!
+    hdr1 = fits.Header()
+    hdr1['EXTNAME'] = 'SCIDATA'
+    hdu1 = fits.ImageHDU(ccf, header=hdr1)
+
+    # CCF errors
+    hdr2 = fits.Header()
+    hdr2['EXTNAME'] = 'ERRDATA'
+    hdu2 = fits.ImageHDU(ccfe, header=hdr2)
+
+    # quality flag
+    hdr3 = fits.Header()
+    hdr3['EXTNAME'] = 'QUALDATA'
+    hdu3 = fits.ImageHDU(ccfq, header=hdr3)
+
+    hdul = fits.HDUList([phdu, hdu1, hdu2, hdu3])
+    Ind.HDU = hdul
+    Ind._SCIDATA = ccf
+    Ind._ERRDATA = ccfe
+    Ind._QUALDATA = ccfq
+
+    if add_order_by_order_info:
+        from .iCCF import add_order_by_order_info
+        Ind = add_order_by_order_info(Ind)
+
+    return Ind
 
 
 def calculate_ccf(filename, mask=None, rvarray=None, output=None, clobber=True,
                   add_order_by_order_info=True, keep_prefix=False,
-                  rv_start=None, rv_step=None, rv_end=None, rv_width=None,
-                  verbose=True, **kwargs):
+                  rv_start=None, rv_step=None, rv_center=None, rv_end=None, rv_width=None,
+                  verbose=True, logger=None, _hijack_calculation=False, 
+                  **kwargs):
     """
     Calculate the CCF for an S2D file and save the result to a fits file.
 
@@ -713,7 +803,7 @@ def calculate_ccf(filename, mask=None, rvarray=None, output=None, clobber=True,
             If True and `filename` has a directory prefix, the output CCF file
             will be saved in that same directory. Otherwise, it will be saved in
             the current directory.
-        rv_start, rv_step, rv_end (float, optional):
+        rv_start, rv_step, rv_end, rv_center (float, optional):
             If `rvarray` is not provided, these parameters will be used to build
             the RV array, or extracted from the S2D header if not provided.
         rv_width (float, optional):
@@ -790,6 +880,9 @@ def calculate_ccf(filename, mask=None, rvarray=None, output=None, clobber=True,
         return ccf_file
 
     if rvarray is None:
+        rvarray, start, end, step = set_rv_array(filename, TEL, s2dhdu_header,
+                                                 rv_start, rv_step, rv_center, rv_end, rv_width)
+
         if verbose:
             logger.info(f'RV array: {start:.2f}:{end:.2f}:{step:.2f}')
 
@@ -822,56 +915,13 @@ def calculate_ccf(filename, mask=None, rvarray=None, output=None, clobber=True,
     if (ccfq[-1] != 0).all():
         warnings.warn('all CCF values have bad quality mask')
 
-    Ind = Indicators(rvarray, ccf[-1], ccfe[-1])
+    if _hijack_calculation:
+        return ccf
 
-    phdr = fits.Header(s2dhdu_header, copy=True)
-    phdr[f'HIERARCH {TEL} RV START'] = rvarray[0]
-    phdr[f'HIERARCH {TEL} RV STEP'] = np.ediff1d(rvarray)[0]
-    phdr[f'HIERARCH {TEL} QC CCF MASK'] = mask_str
-
-    try:
-        if np.isnan(Ind.RV):
-            warnings.warn('CCF RV is NaN')
-        else:
-            phdr[f'HIERARCH {TEL} QC CCF RV'] = Ind.RV
-            phdr[f'HIERARCH {TEL} QC CCF RV ERROR'] = Ind.RVerror
-            phdr[f'HIERARCH {TEL} QC CCF FWHM'] = Ind.FWHM
-            phdr[f'HIERARCH {TEL} QC CCF FWHM ERROR'] = Ind.FWHMerror
-            phdr[f'HIERARCH {TEL} QC CCF BIS SPAN'] = Ind.BIS
-            phdr[f'HIERARCH {TEL} QC CCF BIS SPAN ERROR'] = Ind.BISerror
-            phdr[f'HIERARCH {TEL} QC CCF CONTRAST'] = Ind.contrast
-        # # phdr[f'HIERARCH {TEL} QC CCF CONTRAST ERROR'] = Ind.contrasterror # TODO
-        # # 'ESO QC CCF FLUX ASYMMETRY' # TODO
-    except Exception as e:
-        warnings.warn(str(e))
-
-
-    phdu = fits.PrimaryHDU(header=phdr)
-
-    # science data, the actual CCF!
-    hdr1 = fits.Header()
-    hdr1['EXTNAME'] = 'SCIDATA'
-    hdu1 = fits.ImageHDU(ccf, header=hdr1)
-
-    # CCF errors
-    hdr2 = fits.Header()
-    hdr2['EXTNAME'] = 'ERRDATA'
-    hdu2 = fits.ImageHDU(ccfe, header=hdr2)
-
-    # quality flag
-    hdr3 = fits.Header()
-    hdr3['EXTNAME'] = 'QUALDATA'
-    hdu3 = fits.ImageHDU(ccfq, header=hdr3)
-
-    hdul = fits.HDUList([phdu, hdu1, hdu2, hdu3])
-    Ind.HDU = hdul
-    Ind._SCIDATA = ccf
-    Ind._ERRDATA = ccfe
-    Ind._QUALDATA = ccfq
-
-    if add_order_by_order_info:
-        from .iCCF import add_order_by_order_info
-        Ind = add_order_by_order_info(Ind)
+    Ind = build_ccf_file(
+        ccf, ccfe, ccfq, rvarray, mask_str, TEL, s2dhdu_header,
+        add_order_by_order_info=add_order_by_order_info
+    )
 
     if verbose:
         logger.info(f'Output to: {ccf_file}')
