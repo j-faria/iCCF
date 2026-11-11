@@ -204,6 +204,39 @@ def getBJD(fitsfile, hdul=None, keyword=None, mjd=True, return_hdul=False,
     raise fail
 
 
+def getINSMODE(fitsfile, hdul=None, return_hdul=False, **kwargs):
+    """
+    Try to find the instrument mode in the header of `fitsfile`.
+    
+    Arguments
+    ---------
+    fitsfile : str:
+        The name of the fits file
+    hdul : astropy.fits.HDUList (optional)
+        If provided, ignore `fitsfile` and use this HDU list directly
+    return_hdul: bool (optional, default False)
+        Whether to return the HDU list read from the file
+    """
+    if hdul is None:
+        hdul = _get_hdul(fitsfile, **kwargs)
+
+    fail = ValueError(f'Could not find INS MODE in header of "{fitsfile}"')
+
+    instrument = getINSTRUMENT(fitsfile, hdul=hdul)
+    if instrument == 'HARPS':
+        insmode = hdul[0].header['HIERARCH ESO INS MODE']
+    elif instrument == 'ESPRESSO':
+        insmode = hdul[0].header['HIERARCH ESO INS MODE']
+        keywords = list(hdul[0].header['*det bin*'])
+        binx, biny = [hdul[0].header[k] for k in keywords]
+        insmode += f'{binx}{biny}'
+    else:
+        raise fail
+
+    if return_hdul:
+        return insmode, hdul
+    return insmode
+
 ###
 getFWHM = getKW('FWHM', ['HIERARCH ESO QC CCF FWHM',
                          'HIERARCH TNG QC CCF FWHM',
