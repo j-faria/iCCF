@@ -13,7 +13,7 @@ from .gaussian import gauss, gaussfit, FWHM as FWHMcalc, RV, RVerror, contrast
 from .bisector import BIS, BIS_HARPS as BIS_HARPS_calc, BIS_ESP as BIS_ESP_calc
 from .vspan import vspan
 from .wspan import wspan
-from .keywords import getRVerror, getBJD, getRVarray, getINSTRUMENT
+from .keywords import getRVerror, getBJD, getRVarray, getINSTRUMENT, getINSMODE
 from . import writers
 from .utils import nan_if_runtime_error, one_line_warning
 
@@ -227,6 +227,10 @@ class Indicators:
     @property
     def instrument(self):
         return getINSTRUMENT(self.filename, hdul=self.HDU)
+
+    @property
+    def ins_mode(self):
+        return getINSMODE(self.filename, hdul=self.HDU)
 
     @property
     def guess_rv(self):
