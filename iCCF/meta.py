@@ -37,7 +37,8 @@ def init_worker(rvarray, rvarray_shape,
                 scierrdata, scierrdata_shape,
                 qualdata, qualdata_shape,
                 lldlldata, lldlldata_shape,
-                BERV, BERVMAX, mask, mask_width):
+                BERV, BERVMAX, mask, mask_width,
+                pixels):
     var_dict['rvarray'] = rvarray
     var_dict['rvarray_shape'] = rvarray_shape
     # 
@@ -58,7 +59,8 @@ def init_worker(rvarray, rvarray_shape,
     var_dict['BERVMAX'] = BERVMAX
     var_dict['mask'] = mask
     var_dict['mask_width'] = mask_width
-
+    ##
+    var_dict['pixels'] = pixels
 
 def espdr_compute_CCF_fast(ll, dll, flux, error, blaze, quality, RV_table,
                            mask, berv, bervmax, mask_width=0.5):
@@ -359,6 +361,7 @@ def _dowork(order):
     BERVMAX = var_dict['BERVMAX']
     mask = var_dict['mask']
     mask_width = var_dict['mask_width']
+    pixels = var_dict['pixels']
 
     # rebuild shared memory arrays as numpy arrays
     rvarray = np.frombuffer(var_dict['rvarray']).reshape(var_dict['rvarray_shape'])
